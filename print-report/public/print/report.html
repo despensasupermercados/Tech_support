@@ -50,6 +50,12 @@ input[type=checkbox] { accent-color: var(--brand); width: 15px; height: 15px; }
 .scope { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); padding: 0 0 10px; }
 .scope .lab { font-family: var(--mono); font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-3); }
 .scope b { color: #fff; font-weight: 600; }
+.months { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 10px; }
+.months::-webkit-scrollbar { display: none; }
+.months button { flex: 0 0 auto; position: relative; font: inherit; font-size: 13px; font-weight: 600; min-width: 52px; height: 34px; padding: 0 12px; border-radius: 999px; background: var(--card); color: var(--ink-2); border: 1px solid var(--line-2); cursor: pointer; }
+.months button:hover { color: #fff; }
+.months button.on { background: #3987e5; border-color: #3987e5; color: #fff; }
+.months .part { position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
 .scope .clk { margin-left: auto; display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .scope .clk button { font: inherit; font-size: 11.5px; padding: 3px 10px; background: transparent; color: var(--ink-3); border: 0; cursor: pointer; }
 .scope .clk button.on { background: rgba(57,135,229,.18); color: #fff; }
@@ -330,6 +336,7 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
       <label class="toggle" id="fMoney" title="Billed value at the 2026 Azamara rate card"><i></i>$ value</label>
       </div>
     </div>
+    <div class="months" id="fMonths" role="group" aria-label="Month"></div>
     <div class="scope" id="scope"></div>
     <div class="active" id="active"></div>
   </div>
@@ -363,6 +370,7 @@ const WD = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const fday = (iso) => { if (!iso) return "—"; const [y, m, d] = iso.split("-"); return `${+d} ${MON[+m - 1]} ${y}`; };
 const fdayShort = (iso) => { const [, m, d] = iso.split("-"); return `${+d} ${MON[+m - 1]}`; };
 const hh = (h) => String(h).padStart(2, "0") + ":00";
+const MON3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1;
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -496,7 +504,9 @@ function periodRange() {
     case "lm": { const d = new Date(end.slice(0, 8) + "01T00:00:00Z"); d.setUTCDate(0); const last = d.toISOString().slice(0, 10); return [last.slice(0, 8) + "01", last]; }
     case "ytd": return [end.slice(0, 4) + "-01-01", end];
     case "custom": return [S.from || DAY_MIN, S.to || DAY_MAX];
-    default: return [DAY_MIN, DAY_MAX];
+    default:
+      if (/^\d{4}-\d{2}$/.test(S.period)) { const [a, b] = pRange(S.period, "month"); return [a < DAY_MIN ? DAY_MIN : a, b > DAY_MAX ? DAY_MAX : b]; }
+      return [DAY_MIN, DAY_MAX];
   }
 }
 
@@ -638,6 +648,17 @@ function multi(sel, key, items) {
 }
 function syncControls() {
   $$("#fShip button").forEach((b) => b.classList.toggle("on", b.dataset.s ? S.ships.includes(b.dataset.s) : !S.ships.length));
+  // month strip — one tap per month; the same month drives every tab (Insights too)
+  const months = []; for (let m = DAY_MIN.slice(0, 7); m <= DAY_MAX.slice(0, 7); m = addDays(pRange(m, "month")[1], 1).slice(0, 7)) months.push(m);
+  const multiYear = DAY_MIN.slice(0, 4) !== DAY_MAX.slice(0, 4);
+  const onIns0 = S.tab === "insights";
+  const curM = onIns0 ? (S.ig === "month" ? (S.ik || latestKey("month")) : "") : (/^\d{4}-\d{2}$/.test(S.period) ? S.period : "");
+  const allOn = onIns0 ? S.ig === "year" : S.period === "all";
+  $("#fMonths").innerHTML = `<button data-m="" class="${allOn ? "on" : ""}">All</button>` + months.map((m) => { const part = m === DAY_MAX.slice(0, 7) && DAY_MAX < pRange(m, "month")[1]; return `<button data-m="${m}" class="${m === curM ? "on" : ""}" title="${part ? `on file to ${fday(DAY_MAX)}` : ""}">${MON3[+m.slice(5, 7) - 1]}${multiYear ? ` ’${m.slice(2, 4)}` : ""}${part ? `<i class="part"></i>` : ""}</button>`; }).join("");
+  $("#fMonths").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; const m = b.dataset.m;
+    set(m ? { period: m, from: "", to: "", ig: "month", ik: m, day: "", gday: "" } : { period: "all", from: "", to: "", ig: "year", ik: "", day: "", gday: "" }); };
+  const cm = $("#fMonths button.on"); if (cm && cm.scrollIntoView && !syncControls.done) { cm.scrollIntoView({ inline: "center", block: "nearest" }); syncControls.done = true; }
+  if (!$$("#fPeriod option").some((o) => o.value === S.period) && /^\d{4}-\d{2}$/.test(S.period)) { const o = document.createElement("option"); o.value = S.period; o.textContent = `${MON3[+S.period.slice(5, 7) - 1]} ${S.period.slice(0, 4)}`; $("#fPeriod").appendChild(o); }
   $("#fPeriod").value = S.period;
   const custom = S.period === "custom";
   $("#fFrom").hidden = $("#fTo").hidden = !custom;
@@ -714,12 +735,19 @@ function wireMetric(id) { const el = document.getElementById(id); if (el) el.onc
 function prevDelta(curVal, fn) {
   if (S.period === "all") return "";
   const [a, b] = periodRange(); const n = daysBetween(a, b);
-  const pa = addDays(a, -n), pb = addDays(a, -1);
-  if (pb < DAY_MIN) return `<div class="d">no earlier period on file</div>`;
-  const prev = fn(kpis(filtered([pa, pb])));
-  if (!prev) return `<div class="d">previous ${n} days: none</div>`;
+  // a month compares with the month before it; a month still filling in
+  // (Sep to the 21st) compares per day, never 21 days against 31
+  const month = /^\d{4}-\d{2}$/.test(S.period);
+  const pm = month ? periodOf(addDays(S.period + "-01", -1), "month") : null;
+  const [pa, pb] = month ? pRange(pm, "month") : [addDays(a, -n), addDays(a, -1)];
+  const vs = month ? MON3[+pm.slice(5, 7) - 1] : `previous ${n} days`;
+  if (pa < DAY_MIN) return `<div class="d">no earlier ${month ? "month" : "period"} on file</div>`;
+  const pn = daysBetween(pa, pb);
+  let prev = fn(kpis(filtered([pa, pb])));
+  if (!prev) return `<div class="d">${vs}: none</div>`;
+  const perDay = pn !== n; if (perDay) prev = (prev * n) / pn;
   const ch = Math.round((100 * (curVal - prev)) / prev);
-  return `<div class="d">${ch > 0 ? "▲" : ch < 0 ? "▼" : "="} ${Math.abs(ch)}% vs previous ${n} days</div>`;
+  return `<div class="d">${ch > 0 ? "▲" : ch < 0 ? "▼" : "="} ${Math.abs(ch)}% vs ${vs}${perDay ? ", per day" : ""}</div>`;
 }
 
 // ---- Insights: one period at a time, any grain, any slice
