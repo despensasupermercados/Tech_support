@@ -85,3 +85,16 @@ test("end to end on D1: runs, stores, and emails the new items once", async () =
   assert.equal(body.history.length, 2);
   assert.ok(body.latest.checks.some((c) => c.id.startsWith("gap:Onward")));
 });
+
+test("no long GLOB/LIKE patterns — D1 rejects them where local SQLite does not", () => {
+  const src = readFileSync(new URL("../src/watch.js", import.meta.url), "utf8") + readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  for (const m of src.matchAll(/\b(GLOB|LIKE)\s+'([^']*)'/gi)) assert.ok(m[2].length <= 20, `pattern too long for D1: ${m[2]}`);
+});
+
+test("a malformed timestamp is caught by the D1-safe check", async () => {
+  const DB = makeD1();
+  DB.raw.exec(`INSERT INTO jobs (ship, job_id, end_ts, log_no, result, upload_id) VALUES ('Quest', 1, '2026-13-45 10:00:00', 1, 'Cancel', 'u'), ('Quest', 2, '2026-09-01 10:00:00', 2, 'Cancel', 'u')`);
+  const { gather } = await import("../src/watch.js");
+  const f = await gather({ DB }, new Date("2026-09-02T06:15:00Z"));
+  assert.equal(f.invariants.bad_ts, 1);
+});

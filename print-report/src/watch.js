@@ -108,10 +108,16 @@ export function toSend(result, previousChecks = []) {
 export async function gather(env, now = new Date()) {
   const today = now.toISOString().slice(0, 10);
   const DB = env.DB;
-  const ships = (await DB.prepare("SELECT ship, COUNT(*) AS n, MIN(end_ts) AS first, MAX(end_ts) AS last FROM jobs GROUP BY ship ORDER BY ship").all()).results;
+  // Dates come from VALID stamps only: one malformed row must be counted by the
+  // integrity check, never crash the date maths for everything else.
+  const VALID = "length(end_ts) = 19 AND datetime(end_ts) = end_ts";
+  const ships = (await DB.prepare(`SELECT ship, COUNT(*) AS n, MIN(CASE WHEN ${VALID} THEN end_ts END) AS first, MAX(CASE WHEN ${VALID} THEN end_ts END) AS last FROM jobs GROUP BY ship ORDER BY ship`).all()).results.filter((s) => s.first);
   const tomorrow = addDays(today, 1) + " 23:59:59";
   const invariants = await DB.prepare(`SELECT
-    SUM(CASE WHEN end_ts NOT GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9]' THEN 1 ELSE 0 END) AS bad_ts,
+    -- D1 refuses long GLOB/LIKE patterns ("pattern too complex") where local
+    -- SQLite accepts them — found live 2026-09-23. datetime() is NULL for any
+    -- invalid stamp; length pins the exact 'YYYY-MM-DD HH:MM:SS' shape.
+    SUM(CASE WHEN length(end_ts) <> 19 OR datetime(end_ts) IS NULL OR datetime(end_ts) <> end_ts THEN 1 ELSE 0 END) AS bad_ts,
     SUM(CASE WHEN (start_ts IS NULL) <> (run_s IS NULL) THEN 1 ELSE 0 END) AS start_run_mismatch,
     SUM(CASE WHEN run_s IS NOT NULL AND (run_s < 0 OR run_s >= 86400) THEN 1 ELSE 0 END) AS bad_run,
     SUM(CASE WHEN start_ts IS NOT NULL AND start_ts > end_ts THEN 1 ELSE 0 END) AS start_after_end,
@@ -120,7 +126,7 @@ export async function gather(env, now = new Date()) {
     SUM(CASE WHEN feed < 0 OR color < 0 OR black < 0 OR waste < 0 THEN 1 ELSE 0 END) AS negative,
     SUM(CASE WHEN result = 'Complete' AND run_s IS NULL THEN 1 ELSE 0 END) AS complete_never_ran
     FROM jobs`).bind(tomorrow).first();
-  const dayRows = (await DB.prepare("SELECT ship, substr(end_ts,1,10) AS d FROM jobs GROUP BY ship, d ORDER BY ship, d").all()).results;
+  const dayRows = (await DB.prepare(`SELECT ship, substr(end_ts,1,10) AS d FROM jobs WHERE ${VALID} GROUP BY ship, d ORDER BY ship, d`).all()).results;
   const daysByShip = {};
   for (const r of dayRows) (daysByShip[r.ship] ||= []).push(r.d);
   const cutoff = new Date(now.getTime() - LIMITS.unfinishedHours * 3600000).toISOString();

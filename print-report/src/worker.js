@@ -22,7 +22,7 @@
 import { FLEET } from "../public/print/lib/parse.js";
 import { runWatch } from "./watch.js";
 
-export const VERSION = "2026-09-23c";
+export const VERSION = "2026-09-23d";
 const CHUNK_MAX = 500;
 const FLEET_SET = new Set(FLEET);
 const TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
