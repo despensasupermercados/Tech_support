@@ -22,3 +22,16 @@ enabled = true
 binding = "DB"
 database_name = "cims-print"
 database_id = "a6c4bf30-c41f-4120-ac28-e22119e8001b"
+
+# Night watch (src/watch.js): 06:15 UTC daily. Emails only fails, and warns
+# the first time they appear — never the same gap twice.
+[triggers]
+crons = ["15 6 * * *"]
+
+# Estate mail transport — the only holder of the Resend key.
+[[services]]
+binding = "MAILER"
+service = "cims-mailer"
+
+[vars]
+WATCH_ALERT_TO = "Miguel.Sanmartin@dg3.com"
