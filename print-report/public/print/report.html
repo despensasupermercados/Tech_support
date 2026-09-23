@@ -148,6 +148,67 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
 .wrow .st { flex: none; font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px; width: 44px; padding-top: 2px; color: var(--ink-3); }
 .wrow .st.ok { color: #6bd46b; } .wrow .st.warn { color: var(--warn); } .wrow .st.fail { color: #f08080; }
 .wrow b { color: #fff; font-weight: 600; font-size: 13.5px; } .wrow div div { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; }
+/* ---------- glance tiles ---------- */
+.icards { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.tile { display: flex; flex-direction: column; gap: 8px; text-align: left; width: 100%; color: inherit; cursor: pointer; padding: 14px 15px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); transition: border-color .15s, transform .15s; min-width: 0; }
+.tile:hover { border-color: var(--line-2); transform: translateY(-1px); }
+.tile .t-top { display: flex; align-items: center; gap: 8px; }
+.tile .ic { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: rgba(95,185,70,.12); color: var(--brand-ink); }
+.tile.warn .ic { background: rgba(236,131,90,.14); color: var(--serious); } .tile.hot .ic { background: rgba(250,178,25,.14); color: var(--warn); }
+.tile .t-title { font-family: var(--mono); font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; color: var(--ink-3); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge-s { flex: none; font-family: var(--mono); font-size: 9.5px; letter-spacing: .8px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(250,178,25,.5); color: var(--warn); text-transform: uppercase; }
+.tile.hot .badge-s { background: rgba(250,178,25,.14); }
+.t-body { display: flex; flex-direction: column; gap: 10px; }
+.tile.side .t-body { flex-direction: row; align-items: center; justify-content: space-between; }
+.t-main { min-width: 0; }
+.t-big { font-family: var(--display); font-weight: 600; font-size: 38px; line-height: 1; color: #fff; letter-spacing: -.8px; font-variant-numeric: tabular-nums; }
+.t-big small { font-size: 16px; color: var(--ink-2); font-weight: 500; margin-left: 3px; letter-spacing: 0; }
+.t-big.long { font-size: 28px; white-space: nowrap; }
+.t-big.txt { font-size: 26px; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-lab { font-size: 13px; color: var(--ink-2); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.t-sub { font-size: 12px; color: var(--ink-3); }
+.chip { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--card-2); color: var(--ink); }
+.chip em { font-style: normal; font-weight: 500; color: var(--ink-3); }
+.chip.good { background: rgba(12,163,12,.16); color: #7ee07e; } .chip.bad { background: rgba(208,59,59,.18); color: #ff9a9a; }
+.t-viz svg.mini { width: 100%; height: 44px; display: block; }
+.t-viz svg.ring { width: 78px; height: 78px; flex: none; display: block; }
+.hb { display: grid; gap: 6px; }
+.hb-r { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.hb-r span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-r i { height: 8px; border-radius: 99px; background: var(--card-2); overflow: hidden; }
+.hb-r i b { display: block; height: 100%; border-radius: 99px; background: var(--s1); }
+.hb-r em { font-style: normal; color: var(--ink-3); font-size: 11.5px; min-width: 34px; text-align: right; }
+.pals { display: flex; align-items: flex-end; gap: 5px; flex-wrap: wrap; }
+.pal { width: 22px; height: 26px; border-radius: 4px; border: 1.5px solid var(--line-2); position: relative; overflow: hidden; display: inline-block; }
+.pal b { position: absolute; left: 0; right: 0; bottom: 0; background: #b08a5a; }
+.pals em { font-style: normal; font-size: 12px; color: var(--ink-3); margin-left: 4px; }
+.t-say { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; border-top: 1px solid var(--line); padding-top: 8px; }
+.t-say b { color: var(--ink-2); font-weight: 600; }
+.bnav { display: none; }
+.mrow { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 11px 2px; border: 0; border-bottom: 1px solid var(--line); background: none; color: inherit; text-align: left; cursor: pointer; }
+.mr-main { min-width: 0; display: grid; gap: 4px; }
+.mr-main b { font-weight: 600; font-size: 13.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-main small { font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; }
+.mr-bar { display: block; height: 6px; border-radius: 99px; background: var(--card-2); overflow: hidden; } .mr-bar i { display: block; height: 100%; background: var(--s1); border-radius: 99px; }
+.mr-big { font-family: var(--display); font-weight: 600; font-size: 20px; color: #fff; text-align: right; white-space: nowrap; }
+.mr-big.stall { color: var(--serious); font-size: 17px; }
+.mr-big.sm { font-size: 14px; display: grid; justify-items: end; gap: 2px; }
+.mr-big em { font-style: normal; font-family: var(--sans); font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; }
+.mr-big em.stall { color: var(--serious); background: rgba(236,131,90,.14); } .mr-big em.cx { color: #f08080; background: rgba(208,59,59,.14); }
+.vsb { display: grid; grid-template-columns: 1fr 88px; align-items: center; gap: 6px; } .vsb i { display: block; height: 7px; border-radius: 99px; background: var(--s1); }
+.vsb i.took { background: var(--serious); } .vsb em { font-style: normal; font-size: 11px; color: var(--ink-3); }
+.wg { display: grid; grid-template-columns: 78px repeat(7, 1fr); gap: 4px; align-items: center; }
+.wg-h { text-align: center; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+.wg-s { font-size: 12.5px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 5px; }
+.wg-c { height: 36px; border-radius: 8px; display: grid; place-items: center; font-family: var(--display); font-weight: 600; font-size: 14px; color: #fff; }
+.wg-k { font-size: 11px; color: var(--ink-3); margin-top: 8px; text-align: right; }
+.drow { display: grid; grid-template-columns: 58px 78px 1fr 36px; align-items: center; gap: 8px; width: 100%; padding: 9px 2px; border: 0; border-bottom: 1px solid var(--line); background: none; color: inherit; text-align: left; cursor: pointer; }
+.dd-d { font-size: 12px; color: var(--ink-3); line-height: 1.2; } .dd-d b { display: block; color: var(--ink); font-size: 13px; }
+.dd-s { font-size: 12.5px; color: var(--ink-2); display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; }
+.dd-bar i { display: block; height: 10px; border-radius: 99px; background: var(--s1); overflow: hidden; position: relative; }
+.dd-bar i b { position: absolute; right: 0; top: 0; bottom: 0; background: var(--serious); }
+.dd-h { font-family: var(--display); font-weight: 600; font-size: 15px; color: #fff; text-align: right; }
 /* ---------- phone ---------- */
 .fbtn { display: none; font-weight: 600; cursor: pointer; }
 .fbtn .cnt { font-family: var(--mono); font-size: 10.5px; background: var(--brand); color: #07210a; border-radius: 6px; padding: 1px 6px; }
@@ -180,7 +241,7 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
   .kpi { padding: 11px 12px; }
   .kpi .v { font-size: clamp(18px, 5.6vw, 22px); letter-spacing: -.3px; white-space: nowrap; }
   .kpi .v small { font-size: 12px; }
-  .kpi .l { font-size: 12px; } .kpi .d { font-size: 10.5px; }
+  .kpi .l { font-size: 12px; } .kpi .d { display: none; }
   .chart { height: 280px; } .chart.tall { height: 380px; }
   /* time charts and tables keep a readable width and swipe sideways */
   .hs { overflow-x: auto; margin: 0 -13px; padding: 0 13px; -webkit-overflow-scrolling: touch; }
@@ -193,7 +254,35 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
   .icards, .icols { grid-template-columns: 1fr; }
   .icard { padding: 12px; }
   footer.foot { padding: 12px 12px 24px; }
+  /* look, don't read: no helper paragraphs, no method text, no sentences under tiles */
+  .ph p, .method, .t-say, .lede { display: none !important; }
+  .ph h2 { font-size: 16px; }
+  .tabs, .tabline { display: none; }
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .bnav { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; background: rgba(12,18,26,.96); backdrop-filter: blur(14px); border-top: 1px solid var(--line-2); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .bnav button { border: 0; background: none; color: var(--ink-3); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; padding: 6px 0; border-radius: 10px; cursor: pointer; }
+  .bnav button.on { color: #fff; } .bnav button.on svg { color: var(--brand); }
+  .bsheet { position: fixed; left: 8px; right: 8px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 71; background: var(--card-2); border: 1px solid var(--line-2); border-radius: 16px; padding: 6px; box-shadow: 0 20px 50px rgba(0,0,0,.6); }
+  .bsheet button { display: flex; width: 100%; align-items: center; gap: 12px; padding: 14px 12px; border: 0; background: none; color: var(--ink); font-size: 15px; font-weight: 600; border-radius: 10px; }
+  .bsheet button.on { background: var(--card); }
+  .icards { grid-template-columns: 1fr; gap: 8px; }
+  .tile { padding: 13px 14px; gap: 6px; }
+  .t-big { font-size: 34px; } .t-big.txt { font-size: 24px; }
+  .t-viz svg.ring { width: 72px; height: 72px; }
+  /* period controls: one line — ‹ September 2026 › */
+  .ibar { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .inav { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 6px; }
+  .inav .per { order: 0; flex: none; font-size: 20px; text-align: center; min-width: 0; }
+  .inav #iPrev { order: -1; } .inav #iNext { order: 1; }
+  .inav #iLatest { grid-column: 1 / -1; order: 2; justify-self: center; height: 30px; }
+  .inav #iLatest[disabled] { display: none; }
+  .inav .btn { height: 40px; justify-content: center; padding: 0; font-size: 20px; }
+  #iGrain { width: 100%; } #iGrain button { flex: 1; justify-content: center; }
+  .ibar > div:last-child, .ibar > div:last-child select { width: 100%; }
+  .m-hide { display: none !important; }
 }
+.m-only { display: none; }
+@media (max-width: 700px) { .m-only { display: block; } .d-only { display: none !important; } }
 .empty { padding: 60px 20px; text-align: center; color: var(--ink-3); }
 .empty h2 { color: var(--ink); margin-bottom: 8px; }
 .loading { display: grid; place-items: center; min-height: 50vh; color: var(--ink-3); gap: 12px; }
@@ -243,6 +332,8 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
 <main class="wrap" id="main">
   <div class="loading" id="loading"><div class="spin"></div><div>Loading the record…</div></div>
 </main>
+<nav class="bnav" id="bnav" hidden></nav>
+<div class="bsheet" id="bsheet" hidden></div>
 <footer class="foot"><span>Powered by DG3 · CIMS · Machine time from the press job log (ship's clock). Not labour hours.</span><button class="watchbtn" id="watchBtn" hidden></button><span class="mono" id="foot">cims-print · report</span></footer>
 <div class="modal" id="watchModal" hidden><div class="card mbox"><div class="ph"><div><h2>Night watch</h2><p id="watchWhen"></p></div><button class="btn" id="watchClose">Close</button></div><div id="watchList"></div></div></div>
 
@@ -272,6 +363,12 @@ const SERIES = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"].map(css
 const C = { ink: css("--ink"), ink2: css("--ink-2"), ink3: css("--ink-3"), line: css("--line"), line2: css("--line-2"), card2: css("--card-2"), print: css("--s1"), stall: css("--serious"), brand: css("--brand") };
 const RAMP = ["#152235", "#16345a", "#184f95", "#256abf", "#3987e5", "#6da7ec", "#b7d3f6"];
 const ICON = {
+  box: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
+  spark: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 17l.7 1.8L21.5 19.5l-1.8.7L19 22l-.7-1.8-1.8-.7 1.8-.7z"/></svg>',
+  grid: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>',
+  clockL: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  docL: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>',
+  more: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
   clock: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   alert: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
   doc: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
@@ -555,6 +652,7 @@ function render() {
   const jobs = filtered([a, b]);
   main.innerHTML = `<nav class="tabs" role="tablist">${TABS.map(([k, l]) => `<button role="tab" data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}</button>`).join("")}</nav><div class="tabline"></div><div id="tab" class="fade"></div>`;
   $$(".tabs button").forEach((btn) => (btn.onclick = () => set({ tab: btn.dataset.t })));
+  bottomNav();
   const on = $(".tabs button.on"); if (on && innerWidth <= 700) on.scrollIntoView({ inline: "center", block: "nearest" });
   if (S.tab === "insights") return insightsTab({ jobs });
   if (!jobs.length) { $("#tab").innerHTML = `<div class="card empty"><h2>No jobs match these filters</h2><p>${fday(a)} – ${fday(b)}. Widen the dates or remove a filter.</p></div>`; return; }
@@ -586,6 +684,64 @@ function sliceJobs() {
   return ALL.filter(passesNonDate);
 }
 function latestKey(grain) { return periodOf(DAY_MAX, grain); }
+
+// ---- phone bottom navigation: four icons + "More" for the rest
+const BNAV = [["insights", "Insights", "spark"], ["overview", "Overview", "grid"], ["workload", "Hours", "clockL"], ["printed", "Printed", "docL"]];
+const BMORE = [["stalls", "Stalls"], ["cancels", "Cancels & waste"], ["jobs", "Jobs"]];
+function bottomNav() {
+  const nav = $("#bnav"); nav.hidden = false;
+  const inMore = BMORE.some(([k]) => k === S.tab);
+  nav.innerHTML = BNAV.map(([k, l, ic]) => `<button data-t="${k}" class="${S.tab === k ? "on" : ""}" aria-label="${l}">${ICON[ic]}<span>${l}</span></button>`).join("") +
+    `<button data-more="1" class="${inMore ? "on" : ""}" aria-label="More">${ICON.more}<span>${inMore ? BMORE.find(([k]) => k === S.tab)[1].split(" ")[0] : "More"}</span></button>`;
+  const sheet = $("#bsheet"); sheet.hidden = true;
+  nav.onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.more) { sheet.hidden = !sheet.hidden; sheet.innerHTML = BMORE.map(([k, l]) => `<button data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}</button>`).join(""); return; }
+    sheet.hidden = true; set({ tab: b.dataset.t }); scrollTo({ top: 0 });
+  };
+  sheet.onclick = (e) => { const b = e.target.closest("button"); if (b) { sheet.hidden = true; set({ tab: b.dataset.t }); scrollTo({ top: 0 }); } };
+}
+
+// ---- glance tiles: one big number, one arrow, one picture. The sentence is
+// kept (desktop, and the tooltip) but a phone reader never has to read it.
+function tile(c, vs) {
+  const g = c.g || {};
+  const d = g.delta;
+  const chip = d ? `<span class="chip ${d.tone}">${d.dir === "up" ? "▲" : d.dir === "down" ? "▼" : "="} ${d.dir === "flat" ? "same" : `${d.v}${d.unit === "pts" ? " pts" : "%"}`}<em>${g.perDay ? " per day" : ""} ${esc(vs)}</em></span>` : "";
+  const big = g.text ? `<div class="t-big txt">${esc(g.big)}</div>` : `<div class="t-big${String(g.big ?? "").length > 7 ? " long" : ""}">${esc(g.big ?? "")}${g.unit ? `<small>${esc(g.unit)}</small>` : ""}</div>`;
+  const side = g.viz && g.viz.kind === "ring";
+  return `<button class="tile ${c.tone}${side ? " side" : ""}" data-c='${esc(JSON.stringify(c.go))}' title="${esc(c.html.replace(/<[^>]+>/g, ""))}">
+    <div class="t-top"><span class="ic">${ICON[ICON_BY[c.icon]] || ICON[c.icon] || ICON.doc}</span><span class="t-title">${esc(c.title)}</span>${g.badge ? `<span class="badge-s">${esc(g.badge)}</span>` : ""}</div>
+    <div class="t-body"><div class="t-main">${big}<div class="t-lab">${esc(g.label || "")}</div>${chip || g.sub ? `<div class="t-row">${chip}${g.sub ? `<span class="t-sub">${esc(g.sub)}</span>` : ""}</div>` : ""}</div>${g.viz ? `<div class="t-viz">${viz(g.viz)}</div>` : ""}</div>
+    <div class="t-say">${c.html}</div></button>`;
+}
+function viz(v) {
+  const W = 220, H = 44;
+  if (v.kind === "spark" || v.kind === "bars") {
+    const vals = v.values || []; const n = vals.length; if (!n) return "";
+    const max = Math.max(1, ...vals); const bw = W / n; const hi = v.kind === "spark" ? n - 1 : v.hi;
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="mini">${vals.map((x, i) => { const h = Math.max(2, (x / max) * (H - 2)); return `<rect x="${i * bw + bw * 0.14}" y="${H - h}" width="${bw * 0.72}" height="${h}" rx="${Math.min(2.5, bw * 0.3)}" fill="${i === hi ? C.brand : C.print}" opacity="${i === hi ? 1 : 0.45}"/>`; }).join("")}</svg>`;
+  }
+  if (v.kind === "ring") {
+    const r = 26, c = 2 * Math.PI * r, p = Math.max(0, Math.min(100, v.pct));
+    const col = v.tone === "stall" ? C.stall : v.tone === "critical" ? css("--critical") : C.print;
+    return `<svg viewBox="0 0 64 64" class="ring"><circle cx="32" cy="32" r="${r}" fill="none" stroke="${C.line2}" stroke-width="8"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="${col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(c * p) / 100} ${c}" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle" font-size="15" font-weight="700" fill="#fff" font-family="Outfit, sans-serif">${p}%</text></svg>`;
+  }
+  if (v.kind === "hbars") {
+    const max = Math.max(1, ...v.rows.map((r) => r.v));
+    return `<div class="hb">${v.rows.map((r, i) => `<div class="hb-r"><span>${esc(r.name)}</span><i><b style="width:${(100 * r.v) / max}%;${i ? "" : `background:${C.brand}`}"></b></i><em>${r.v} h</em></div>`).join("")}</div>`;
+  }
+  if (v.kind === "vs") {
+    const max = Math.max(v.a, v.b);
+    return `<div class="hb vs"><div class="hb-r"><span>${esc(v.la)}</span><i><b style="width:${(100 * v.a) / max}%;background:${C.stall}"></b></i></div><div class="hb-r"><span>${esc(v.lb)}</span><i><b style="width:${Math.max(2, (100 * v.b) / max)}%"></b></i><em>${esc(v.lbv)}</em></div></div>`;
+  }
+  if (v.kind === "pallet") {
+    const full = Math.floor(v.boxes / v.per), rest = v.boxes % v.per;
+    const pal = (f) => `<span class="pal"><b style="height:${Math.round(f * 100)}%"></b></span>`;
+    return `<div class="pals">${Array.from({ length: Math.min(full, 12) }, () => pal(1)).join("")}${rest ? pal(rest / v.per) : ""}<em>${full ? `${full} pallet${full > 1 ? "s" : ""}${rest ? ` + ${rest}` : ""}` : `${rest} of ${v.per}`}</em></div>`;
+  }
+  return "";
+}
 function insightsTab() {
   const grain = GRAINS.includes(S.ig) ? S.ig : "month";
   let key = S.ik && periodOf(pRange(S.ik, grain)[0], grain) === S.ik ? S.ik : latestKey(grain);
@@ -616,7 +772,7 @@ function insightsTab() {
       ${lens === "dept" || lens === "cat" ? `<select class="ctl" id="iLv">${(lens === "dept" ? depts : cats).map((v) => `<option ${v === lv ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>` : ""}
     </div>
   </div>
-  <div class="card panel" style="margin-bottom:14px"><div class="ph"><div><h2>Press time, ${grain} by ${grain}</h2><p>The last 12 ${grain}s for this view. Click a bar to open that ${grain}.${cov.partial ? ` <span class="part">This ${grain} is only partly on file (${cov.days} of ${cov.of} days).</span>` : ""}</p></div></div><div class="chart short" id="chStrip" style="height:180px"></div></div>
+  <div class="card panel m-hide" style="margin-bottom:14px"><div class="ph"><div><h2>Press time, ${grain} by ${grain}</h2><p>The last 12 ${grain}s for this view. Click a bar to open that ${grain}.${cov.partial ? ` <span class="part">This ${grain} is only partly on file (${cov.days} of ${cov.of} days).</span>` : ""}</p></div></div><div class="chart short" id="chStrip" style="height:180px"></div></div>
   <div id="icards"></div>`;
   $("#iGrain").onclick = (e) => { const b = e.target.closest("button"); if (b) set({ ig: b.dataset.g, ik: periodOf(pRange(key, grain)[1] > DAY_MAX ? DAY_MAX : pRange(key, grain)[1], b.dataset.g) }); };
   $("#iPrev").onclick = () => set({ ik: shiftPeriod(key, grain, -1) });
@@ -643,7 +799,7 @@ function insightsTab() {
   const draw = (js, dys) => {
     const r = buildInsights({ jobs: js, key, grain, bases: BASE, docName: docLabel, dayMin: DAY_MIN, dayMax: DAY_MAX, days: dys });
     if (r.empty) return `<div class="card empty" style="padding:28px">No jobs logged in this ${grain}.</div>`;
-    return r.cards.map((c, i) => `<button class="icard ${c.tone}" data-c='${esc(JSON.stringify(c.go))}'><span class="ic">${ICON[ICON_BY[c.icon]] || ICON.doc}</span><div><div class="t">${esc(c.title)}</div><div class="x">${c.html}</div><div class="go">Open →</div></div></button>`).join("");
+    return r.cards.map((c) => tile(c, r.vs)).join("");
   };
   let html;
   if (lens === "ships") {
@@ -653,7 +809,7 @@ function insightsTab() {
     html = `<div class="icards">${draw(slice, days)}</div>`;
   }
   $("#icards").innerHTML = html;
-  $$("#icards .icard").forEach((b) => (b.onclick = () => {
+  $$("#icards .tile").forEach((b) => (b.onclick = () => {
     const go = JSON.parse(b.dataset.c);
     const patch = { ...go };
     if (!go.day) Object.assign(patch, { period: "custom", from: clampA, to: clampB });
@@ -693,7 +849,7 @@ function overview({ jobs, a, b, k }) {
     <div class="card panel c8"><div class="ph"><div><h2>Press time, ${days <= 62 ? "day by day" : days <= 400 ? "week by week" : "month by month"}</h2><p>Hours the press was busy — printing at normal speed, and stalled beyond it. Click a bar to open that day.</p></div>
       <div class="legend"><span><i class="dot" style="background:${C.print}"></i>Printing</span><span><i class="dot" style="background:${C.stall}"></i>Stalled</span></div></div>
       <div class="chart" id="chDaily" style="height:430px"></div></div>
-    <div class="card panel c4"><div class="ph"><div><h2>What stands out</h2><p>For ${S.ships.length && S.ships.length < SHIPS.length ? esc(S.ships.join(" + ")) : `all ${SHIPS.length} ships`}, ${fday(a)} – ${fday(b)}. Tap one to open it. <a href="#" id="toIns">Month by month →</a></p></div></div><div class="insights" id="ins"></div></div>
+    <div class="card panel c4 m-hide"><div class="ph"><div><h2>What stands out</h2><p>For ${S.ships.length && S.ships.length < SHIPS.length ? esc(S.ships.join(" + ")) : `all ${SHIPS.length} ships`}, ${fday(a)} – ${fday(b)}. Tap one to open it. <a href="#" id="toIns">Month by month →</a></p></div></div><div class="insights" id="ins"></div></div>
     <div class="card panel c6"><div class="ph"><div><h2>By department</h2><p>Press account that sent the job. Click to filter.</p></div>${metricSeg("mDept")}</div><div class="chart tall" id="chDept"></div></div>
     <div class="card panel c6"><div class="ph"><div><h2>By document type</h2><p>What was printed, read from the file name. Click to filter.</p></div>${metricSeg("mCat")}</div><div class="chart tall" id="chCat"></div></div>
     ${SHIPS.length > 1 && (!S.ships.length || S.ships.length > 1) ? `<div class="card panel c12"><div class="ph"><div><h2>Ships side by side</h2><p>${metric().label} per ${daysBetween(a, b) <= 62 ? "week" : "month"}. A period cut by the date range is marked "part".</p></div>${metricSeg("mShip")}</div><div class="chart short" id="chShip"></div></div>` : ""}
@@ -802,6 +958,14 @@ function insights(jobs, k) {
 // end of day reads 24:00, never a second 00:00
 const clock = (sec) => { if (sec == null) return "—"; const m = Math.round(sec / 60); return `${String(Math.min(24, Math.floor(m / 60))).padStart(2, "0")}:${String(m >= 1440 ? 0 : m % 60).padStart(2, "0")}`; };
 const med = (arr) => quantile(arr.slice().sort((x, y) => x - y), 0.5);
+// Phone: ships × weekdays, each cell the typical hours worked. Colour = how busy.
+function weekGrid(ships, pdays) {
+  const cells = ships.map((s) => WD.map((_, wd) => { const v = pdays.filter((x) => x.s === s && (new Date(x.d + "T00:00:00Z").getUTCDay() + 6) % 7 === wd).map((x) => x.busy); return v.length ? med(v) : null; }));
+  const max = Math.max(1, ...cells.flat().filter((x) => x != null));
+  const idx = (v) => Math.min(RAMP.length - 1, 1 + Math.round(((RAMP.length - 2) * v) / max));
+  const col = (v) => RAMP[idx(v)];
+  return `<div class="wg"><span></span>${WD.map((w) => `<span class="wg-h">${w[0]}</span>`).join("")}${ships.map((s, i) => `<span class="wg-s"><i class="dot" style="background:${shipColor(s)}"></i>${esc(s)}</span>${cells[i].map((v) => `<span class="wg-c" style="background:${v == null ? "transparent" : col(v)};color:${v != null && idx(v) >= 5 ? "#0a0f16" : "#fff"}">${v == null ? "–" : Math.round(v / 3600)}</span>`).join("")}`).join("")}</div><div class="wg-k">hours worked on a typical day</div>`;
+}
 function workload({ jobs, a, b, k }) {
   const ships = [...new Set(jobs.map((j) => j.ship))].sort();
   const prof = {}; for (const s of ships) prof[s] = dayProfiles(jobs.filter((j) => j.ship === s), BASE[s]);
@@ -842,14 +1006,17 @@ function workload({ jobs, a, b, k }) {
     <div class="card panel c4"><div class="ph"><div><h2>How long a working day is</h2><p>Days by hours worked, ${esc(wship)}.</p></div></div><div class="chart" id="chHist"></div></div>
 
     <div class="card panel c12"><div class="ph"><div><h2>Each press's week</h2><p>Typical (median) day for each weekday, days with printing only.</p></div></div>
-      <div class="tbl-wrap"><table class="t"><thead><tr><th>Ship</th>${WD.map((w) => `<th class="num">${w}</th>`).join("")}<th class="num">Start</th><th class="num">Finish</th><th class="num">Busiest 10%</th></tr></thead><tbody>
+      <div class="m-only wkgrid">${weekGrid(ships, pdays)}</div>
+      <div class="tbl-wrap d-only"><table class="t"><thead><tr><th>Ship</th>${WD.map((w) => `<th class="num">${w}</th>`).join("")}<th class="num">Start</th><th class="num">Finish</th><th class="num">Busiest 10%</th></tr></thead><tbody>
       ${ships.map((s) => { const ds = pdays.filter((x) => x.s === s); return `<tr><td><span class="dot" style="background:${shipColor(s)}"></span> ${esc(s)}</td>${WD.map((_, wd) => { const v = ds.filter((x) => (new Date(x.d + "T00:00:00Z").getUTCDay() + 6) % 7 === wd); return `<td class="num">${v.length ? `<b style="color:#fff">${dur(med(v.map((x) => x.busy)))}</b><div class="muted" style="font-size:11px">${v.length}/${wdCount[wd]} days</div>` : "—"}</td>`; }).join("")}<td class="num">${clock(med(ds.map((x) => x.first)))}</td><td class="num">${clock(med(ds.map((x) => x.last)))}</td><td class="num">${dur(quantile(ds.map((x) => x.busy).sort((x, y) => x - y), 0.9))}</td></tr>`; }).join("")}
       </tbody></table></div>
       <div class="method">All hours are <b>machine time</b> from the press's own start and end times, on the ship's clock. The log does not record who stood at the press, so these are not labour hours. A job across midnight counts on both days.</div></div>
 
     <div class="card panel c12"><div class="ph"><div><h2>When the press is busy</h2><p>Average minutes busy in each hour, per press, over ${n0(nDays)} days. Darker = busier. Click a cell to see the jobs that started in that hour.</p></div></div><div class="chart" id="chHeat" style="height:300px"></div></div>
     <div class="card panel c12"><div class="ph"><div><h2>Busiest days</h2><p>Click a day to open it on the timeline.</p></div></div>
-      <div class="tbl-wrap" style="max-height:420px"><table class="t" id="tDays"></table></div></div>
+      <div class="m-only legend" style="margin-bottom:4px"><span><i class="dot" style="background:${C.print}"></i>Printing</span><span><i class="dot" style="background:${C.stall}"></i>Stalled</span></div>
+      <div class="m-only" id="mDays"></div>
+      <div class="tbl-wrap d-only" style="max-height:420px"><table class="t" id="tDays"></table></div></div>
   </div>`;
 
   // ---- day timeline (Gantt)
@@ -879,7 +1046,7 @@ function workload({ jobs, a, b, k }) {
       renderItem: (params, api) => { const s0 = api.coord([api.value(1), api.value(0)]), s1 = api.coord([api.value(2), api.value(0)]); const kind = blocks[params.dataIndex].kind;
         return { type: "rect", shape: { x: s0[0], y: s0[1] - H / 2, width: Math.max(1.5, s1[0] - s0[0]), height: H, r: 3 }, style: { fill: kind === "print" ? C.print : C.stall, stroke: css("--card"), lineWidth: 1 } }; } }],
   });
-  $("#gSum").innerHTML = ships.map((s) => { const p = prof[s][gday]; return `<span><i class="dot" style="background:${shipColor(s)}"></i><b style="color:#fff">${esc(s)}</b>&nbsp;${p ? `${clock(p.first)}→${clock(p.last)} · worked ${dur(p.busy)} of a ${dur(p.window)} window${p.stall >= 60 && BASE[s] ? ` · ${dur(p.stall)} stalled` : ""}` : "no jobs"}</span>`; }).join("");
+  $("#gSum").innerHTML = ships.map((s) => { const p = prof[s][gday]; return `<span><i class="dot" style="background:${shipColor(s)}"></i><b style="color:#fff">${esc(s)}</b>&nbsp;${p ? `${clock(p.first)}→${clock(p.last)} · <b style="color:#fff">${dur(p.busy)}</b><span class="m-hide"> worked of a ${dur(p.window)} window</span>${p.stall >= 60 && BASE[s] ? ` · <span style="color:${C.stall}">${dur(p.stall)} stalled</span>` : ""}` : "no jobs"}</span>`; }).join("");
   const ws = $("#wShip"); if (ws) ws.onclick = (e) => { const bt = e.target.closest("button"); if (bt) set({ wship: bt.dataset.s }); };
 
   // ---- actogram: one column per day, 00 at top
@@ -942,6 +1109,8 @@ function workload({ jobs, a, b, k }) {
     const js = jobs.filter((j) => j.day === r.d && j.ship === r.s); const main = groupBy(js, (j) => j.cat, (j) => j.runS || 0)[0];
     return `<tr class="click" data-d="${r.d}"><td>${WD[(new Date(r.d + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(r.d)}</td><td><span class="dot" style="background:${shipColor(r.s)}"></span> ${esc(r.s)}</td><td class="num"><b style="color:#fff">${dur(r.busy)}</b></td><td style="width:14%"><div class="meter"><i style="width:${(100 * r.busy) / maxS}%"></i></div></td><td class="num">${r.stall >= 60 && BASE[r.s] ? `<span class="pill stall">${dur(r.stall)}</span>` : "—"}</td><td class="num">${clock(r.first)} → ${clock(r.last)}</td><td class="num">${n0(js.length)}</td><td>${esc(main?.[0] || "—")}</td></tr>`; }).join("")}</tbody>`;
   $$("#tDays tr.click").forEach((tr) => (tr.onclick = () => { set({ gday: tr.dataset.d }); scrollTo({ top: 0, behavior: "smooth" }); }));
+  $("#mDays").innerHTML = topDays.slice(0, 12).map((r) => `<button class="drow" data-d="${r.d}"><span class="dd-d"><b>${WD[(new Date(r.d + "T00:00:00Z").getUTCDay() + 6) % 7]}</b>${fdayShort(r.d)}</span><span class="dd-s"><i class="dot" style="background:${shipColor(r.s)}"></i>${esc(r.s)}</span><span class="dd-bar"><i style="width:${(100 * r.busy) / maxS}%"><b style="width:${r.busy ? (100 * Math.max(0, r.stall || 0)) / r.busy : 0}%"></b></i></span><span class="dd-h">${Math.round(r.busy / 3600)}h</span></button>`).join("");
+  $$("#mDays .drow").forEach((b) => (b.onclick = () => { set({ gday: b.dataset.d }); scrollTo({ top: 0, behavior: "smooth" }); }));
 }
 
 // ---- What's printed
@@ -953,7 +1122,8 @@ function printed({ jobs }) {
     <div class="card panel c7"><div class="ph"><div><h2>How long each type takes</h2><p>Completed jobs. The box is the middle half of jobs, the line inside is the typical job, the whiskers reach the shortest and longest 5%.</p></div></div><div class="chart tall" id="chBox"></div></div>
     <div class="card panel c12"><div class="ph"><div><h2>Documents that repeat</h2><p>Dated editions of the same document are folded together ("DAY 10 … SEP 22" and "DAY 11 … SEP 23" are one). Click a row to filter everything to that document.</p></div>
       <input class="ctl" id="docQ" placeholder="Find a document…" style="min-width:220px"></div>
-      <div class="tbl-wrap" style="max-height:600px"><table class="t" id="tDocs"></table></div></div>
+      <div class="m-only" id="mDocs"></div>
+      <div class="tbl-wrap d-only" style="max-height:600px"><table class="t" id="tDocs"></table></div></div>
     <div class="card panel c12"><div class="ph"><div><h2>Who prints what</h2><p>${metric().label} by department and document type.</p></div>${metricSeg("mMx")}</div><div class="chart" id="chMx" style="height:460px"></div></div>
   </div>`;
   ["mCat2", "mMx"].forEach(wireMetric);
@@ -996,6 +1166,9 @@ function printed({ jobs }) {
       <td class="num"><b style="color:#fff">${n0(d.n)}</b></td><td class="num">${n0(d.sheets)}</td><td class="num">${dur(d.med)}</td><td class="num">${dur(d.min)}</td><td class="num">${dur(d.max)}</td>${S.money ? `<td class="num">${usd(d.value)}</td>` : ""}</tr>`).join("")}</tbody>`;
     $$("#tDocs th").forEach((t) => (t.onclick = () => { docSort = { k: t.dataset.k, dir: docSort.k === t.dataset.k ? -docSort.dir : -1 }; drawDocs(); }));
     $$("#tDocs tr.click").forEach((tr) => (tr.onclick = () => set({ doc: tr.dataset.k })));
+    const top = Math.max(1, ...list.slice(0, 40).map((d) => d.n));
+    $("#mDocs").innerHTML = list.slice(0, 40).map((d) => `<button class="mrow" data-k="${esc(d.key)}"><span class="mr-main"><b>${esc(d.name)}</b><span class="mr-bar"><i style="width:${(100 * d.n) / top}%"></i></span><small>${esc(d.cat)} · typical ${dur(d.med)}</small></span><span class="mr-big">×${n0(d.n)}</span></button>`).join("");
+    $$("#mDocs .mrow").forEach((b) => (b.onclick = () => set({ doc: b.dataset.k })));
   };
   $("#docQ").oninput = drawDocs; drawDocs();
 
@@ -1034,12 +1207,14 @@ function stalls({ jobs, k }) {
     <div class="card panel c6"><div class="ph"><div><h2>Stalled time by department</h2><p>Whose jobs sat on the press. Click to filter.</p></div></div><div class="chart" id="chStD"></div></div>
     <div class="card panel c6"><div class="ph"><div><h2>When stalled jobs were started</h2><p>Hour the job started. Overnight starts point to jobs left running unattended.</p></div></div><div class="chart" id="chStH"></div></div>
     <div class="card panel c12"><div class="ph"><div><h2>Longest stalls</h2><p>Each job against its ship's normal time for that many sheets. Click a row to see that day.</p></div></div>
-      <div class="tbl-wrap"><table class="t"><thead><tr><th>Ended</th><th>Ship</th><th>Dept</th><th>Document</th><th class="num">Sheets</th><th class="num">Normal time</th><th class="num">Actual</th><th class="num">Stalled</th><th>Result</th></tr></thead><tbody>
+      <div class="m-only">${st.slice(0, 30).map((j) => `<button class="mrow st" data-d="${j.day}" data-s="${esc(j.ship)}"><span class="mr-main"><b>${esc(docLabel(j.key))}</b><small><i class="dot" style="background:${shipColor(j.ship)}"></i> ${esc(j.ship)} · ${fdayShort(j.day)}</small>
+        <span class="vsb"><i class="took" style="width:100%"></i><em>${dur(j.runS)}</em></span><span class="vsb"><i style="width:${Math.max(2, (100 * (j.expS || 0)) / j.runS)}%"></i><em>normal ${dur(j.expS)}</em></span></span><span class="mr-big stall">+${dur(j.stallS).replace(" min", "m")}</span></button>`).join("")}</div>
+      <div class="tbl-wrap d-only"><table class="t"><thead><tr><th>Ended</th><th>Ship</th><th>Dept</th><th>Document</th><th class="num">Sheets</th><th class="num">Normal time</th><th class="num">Actual</th><th class="num">Stalled</th><th>Result</th></tr></thead><tbody>
       ${st.slice(0, 150).map((j) => `<tr class="click" data-d="${j.day}" data-s="${esc(j.ship)}"><td>${fday(j.day)} <span class="muted">${j.endTs.slice(11, 16)}</span></td><td>${esc(j.ship)}</td><td>${esc(j.dept)}</td><td class="doc">${esc(j.file || "(no file name)")}<small>${esc(j.cat)}</small></td><td class="num">${n0(j.feed)}</td><td class="num">${dur(j.expS)}</td><td class="num">${dur(j.runS)}</td><td class="num"><span class="pill stall">${dur(j.stallS)}</span></td><td>${j.result === "Complete" ? "Completed" : `<span class="pill cancel">${esc(j.result)}</span>`}</td></tr>`).join("")}
       </tbody></table></div>
       <div class="method"><b>How "stalled" is measured.</b> Each press's normal speed is measured from its own completed jobs: ${bases || "not enough history yet"}. A job may take up to ${TOLERANCE}× its normal time and still count as printing, which covers duplex, heavy stock and a slow file. Time beyond that is stalled: paper out, a jam, or a job left waiting on the press. The log does not say which.</div></div>
   </div>`;
-  $$("#tab tr.click").forEach((tr) => (tr.onclick = () => set({ day: tr.dataset.d, ships: [tr.dataset.s], tab: "jobs" })));
+  $$("#tab tr.click, #tab .mrow.st").forEach((tr) => (tr.onclick = () => set({ day: tr.dataset.d, ships: [tr.dataset.s], tab: "jobs" })));
   const byDept = groupBy(jobs, (j) => j.dept, (j) => (j.stallS || 0) / 3600).filter((r) => r[1] > 0);
   chart("chStD", {
     grid: { left: 8, right: 60, top: 6, bottom: 6, containLabel: true },
@@ -1105,7 +1280,8 @@ function jobsTab({ jobs }) {
   const PAGE = 100;
   $("#tab").innerHTML = `<div class="card panel"><div class="tbar"><div><h2>${n0(jobs.length)} jobs</h2><p class="muted" style="font-size:12.5px">Every job matching the filters. Click a column to sort.</p></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="pager" id="pager"></div><button class="btn" id="csv">Download CSV</button></div></div>
-    <div class="tbl-wrap" style="max-height:none"><table class="t" id="tJobs"></table></div></div>`;
+    <div class="m-only" id="mJobs"></div>
+    <div class="tbl-wrap d-only" style="max-height:none"><table class="t" id="tJobs"></table></div></div>`;
   const cols = [["endMs", "Ended"], ["ship", "Ship"], ["dept", "Dept"], ["file", "Document"], ["feed", "Sheets", 1], ["color", "Colour", 1], ["black", "Black", 1], ["runS", "Time", 1], ["expS", "Normal", 1], ["stallS", "Stalled", 1], ["result", "Result"]];
   if (S.money) cols.push(["value", "Billed", 1]);
   const draw = () => {
@@ -1119,6 +1295,7 @@ function jobsTab({ jobs }) {
       <td class="num">${(j.stallS || 0) >= STALL_JOB_S ? `<span class="pill stall">${dur(j.stallS)}</span>` : j.stallS == null ? "—" : ""}</td>
       <td>${j.result === "Complete" ? "Completed" : `<span class="pill cancel">${esc(j.result)}</span>`}</td>${S.money ? `<td class="num">${usd(j.value)}</td>` : ""}</tr>`).join("")}</tbody>`;
     $$("#tJobs th").forEach((t) => (t.onclick = () => { jobSort = { k: t.dataset.k, dir: jobSort.k === t.dataset.k ? -jobSort.dir : -1 }; draw(); }));
+    $("#mJobs").innerHTML = rows.slice(0, 50).map((j) => `<div class="mrow job"><span class="mr-main"><b>${esc(docLabel(j.key) === j.key ? j.file || "(no file name)" : j.file || "(no file name)")}</b><small><i class="dot" style="background:${shipColor(j.ship)}"></i> ${esc(j.ship)} · ${esc(j.dept)} · ${fdayShort(j.day)} ${j.endTs.slice(11, 16)} · ${n0(j.feed)} sh</small></span><span class="mr-big sm">${dur(j.runS)}${(j.stallS || 0) >= STALL_JOB_S ? `<em class="stall">+${dur(j.stallS)}</em>` : ""}${j.result !== "Complete" ? `<em class="cx">${esc(j.result)}</em>` : ""}</span></div>`).join("");
     $("#pager").innerHTML = `<button class="btn" ${jobPage ? "" : "disabled"} data-p="-1">‹</button> page ${jobPage + 1} of ${pages} <button class="btn" ${jobPage < pages - 1 ? "" : "disabled"} data-p="1">›</button>`;
     $$("#pager button").forEach((bt) => (bt.onclick = () => { jobPage += +bt.dataset.p; draw(); }));
   };
