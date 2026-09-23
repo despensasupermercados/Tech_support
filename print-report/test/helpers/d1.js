@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 export function makeD1(file = ":memory:") {
   const db = new DatabaseSync(file);
-  for (const f of ["0001_jobs.sql", "0002_watch.sql"]) db.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), "utf8"));
+  for (const f of ["0001_jobs.sql", "0002_watch.sql", "0003_watch_sent.sql"]) db.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), "utf8"));
   const wrap = (sql, args = []) => ({
     sql, args,
     bind: (...a) => wrap(sql, a),

@@ -33,12 +33,18 @@ test("a gap names the missing dates — Onward's real 23 days", () => {
   assert.match(c.detail, /15 Aug 2026 – 6 Sep 2026/);
 });
 
-test("a warn is emailed once, a fail every time", () => {
+test("only a fail is emailed; a warn never is", () => {
   const r = assess({ ...base, daysByShip: { Onward: ["2026-08-14", "2026-09-07"] }, invariants: { future: 1 } });
-  const first = toSend(r, []);
-  assert.deepEqual(first.map((c) => c.status).sort(), ["fail", "warn"]);
-  const second = toSend(r, r.checks);
-  assert.deepEqual(second.map((c) => c.status), ["fail"]);
+  assert.deepEqual(toSend(r, {}).map((c) => c.status), ["fail"]);
+  const clean = assess({ ...base, daysByShip: { Onward: ["2026-08-14", "2026-09-07"] } });
+  assert.deepEqual(toSend(clean, {}), [], "a gap is a fact about the ship, not a fault");
+});
+
+test("a fail is emailed once, then again only after 7 days", () => {
+  const r = assess({ ...base, invariants: { future: 1 } });
+  const now = new Date("2026-09-20T06:15:00Z");
+  assert.equal(toSend(r, { integrity: "2026-09-17T06:15:00Z" }, now).length, 0);
+  assert.equal(toSend(r, { integrity: "2026-09-13T06:15:00Z" }, now).length, 1);
 });
 
 test("a normal speed outside the plausible band is flagged, not trusted", () => {
@@ -55,7 +61,7 @@ test("the alert email carries the one letterhead and no rgba or gradient", () =>
   const m = alertEmail([{ id: "x", status: "fail", title: "Page not served: /print/", detail: "HTTP 500" }], {});
   assert.match(m.html, /CRUISE INDUSTRY MANAGED SERVICES/);
   assert.doesNotMatch(m.html, /rgba\(|linear-gradient/);
-  assert.match(m.subject, /1 problem/);
+  assert.match(m.subject, /something is wrong · Page not served/);
   assert.match(m.text, /\[PROBLEM\] Page not served/);
 });
 
@@ -65,25 +71,28 @@ test("cims-mast.js is byte-identical to the estate letterhead", () => {
   assert.equal(sha, "1898be3164df1a9a84f8b7613f61145c272b9da6");
 });
 
-test("end to end on D1: runs, stores, and emails the new items once", async () => {
+test("end to end on D1: a gap sends nothing; a broken row emails once, not nightly", async () => {
   const DB = makeD1();
   const sent = [];
   const env = { DB, WATCH_ALERT_TO: "a@b.co", MAILER: { fetch: async (u, o) => { sent.push(JSON.parse(o.body)); return new Response("{}"); } } };
   DB.raw.exec(`INSERT INTO jobs (ship, job_id, end_ts, start_ts, run_s, log_no, mode, user, result, feed, upload_id) VALUES
     ('Onward', 1, '2026-08-14 10:00:00', '2026-08-14 09:59:00', 60, 1, 'Print', 'Insider', 'Complete', 1, 'u'),
     ('Onward', 2, '2026-09-07 10:00:00', '2026-09-07 09:59:00', 60, 2, 'Print', 'Insider', 'Complete', 1, 'u')`);
-  const now = new Date("2026-09-10T06:15:00Z");
-  const a = await runWatch(env, { trigger: "cron", now });
+  const a = await runWatch(env, { trigger: "cron", now: new Date("2026-09-10T06:15:00Z") });
   assert.equal(a.status, "warn");
+  assert.equal(sent.length, 0, "a gap is never emailed");
+  DB.raw.exec(`INSERT INTO jobs (ship, job_id, end_ts, start_ts, run_s, log_no, result, feed, upload_id) VALUES ('Onward', 3, '2026-09-08 10:00:00', '2026-09-08 11:00:00', 60, 3, 'Complete', 1, 'u')`);
+  await runWatch(env, { trigger: "cron", now: new Date("2026-09-11T06:15:00Z") });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].app, "cims-print");
   assert.equal(sent[0].from, "CIMS <cims@cims.work>");
-  await runWatch(env, { trigger: "cron", now: new Date("2026-09-11T06:15:00Z") });
-  assert.equal(sent.length, 1, "the same gap is not emailed twice");
+  assert.match(sent[0].subject, /something is wrong/);
+  await runWatch(env, { trigger: "cron", now: new Date("2026-09-12T06:15:00Z") });
+  assert.equal(sent.length, 1, "not again the next night");
+  await runWatch(env, { trigger: "cron", now: new Date("2026-09-18T06:15:00Z") });
+  assert.equal(sent.length, 2, "once more after 7 days");
   const r = await worker.fetch(new Request("https://hon.cims.work/print/api/watch"), { ...env, ASSETS: { fetch: async () => new Response("") } });
-  const body = await r.json();
-  assert.equal(body.history.length, 2);
-  assert.ok(body.latest.checks.some((c) => c.id.startsWith("gap:Onward")));
+  assert.equal((await r.json()).history.length, 4);
 });
 
 test("no long GLOB/LIKE patterns — D1 rejects them where local SQLite does not", () => {

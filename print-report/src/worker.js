@@ -21,8 +21,11 @@
 
 import { FLEET } from "../public/print/lib/parse.js";
 import { runWatch } from "./watch.js";
+import { sendReminder } from "./remind.js";
 
-export const VERSION = "2026-09-23d";
+export const REMIND_CRON = "0 13 1 * *";
+
+export const VERSION = "2026-09-23e";
 const CHUNK_MAX = 500;
 const FLEET_SET = new Set(FLEET);
 const TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
@@ -166,6 +169,10 @@ async function watch(env, url) {
 export default {
   // Night watch — Cloudflare cron (wrangler.toml [triggers]).
   async scheduled(event, env, ctx) {
+    if (event.cron === REMIND_CRON) {
+      ctx.waitUntil(sendReminder(env).then((r) => console.log(`[remind] ${JSON.stringify(r)}`)));
+      return;
+    }
     ctx.waitUntil(runWatch(env, { trigger: "cron", email: true }).then((r) => console.log(`[watch] ${r.status} · ${r.checks.length} checks · emailed ${r.emailed}`)));
   },
 
