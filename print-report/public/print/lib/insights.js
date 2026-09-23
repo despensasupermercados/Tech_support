@@ -58,6 +58,22 @@ export function periodLabel(key, grain) {
   return key;
 }
 const prevWord = { day: "the day before", week: "last week", month: "last month", year: "last year" };
+// Short comparison label for a glance chip: "vs Aug", "vs 2025", "vs last wk".
+export function vsLabel(key, grain) {
+  const p = shiftPeriod(key, grain, -1);
+  if (grain === "month") return `vs ${MON[+p.slice(5, 7) - 1]}`;
+  if (grain === "year") return `vs ${p}`;
+  if (grain === "week") return "vs last wk";
+  return `vs ${WD[weekday(p)]}`;
+}
+// Delta for a glance: percent change (or points for shares). bad = which way is bad.
+function delta(cur, prev, { points = false, bad = null } = {}) {
+  if (prev == null || (!points && !prev)) return null;
+  const v = points ? Math.round(cur - prev) : Math.round((100 * (cur - prev)) / prev);
+  const dir = v > 0 ? "up" : v < 0 ? "down" : "flat";
+  const tone = bad == null || dir === "flat" ? "neutral" : dir === bad ? "bad" : "good";
+  return { v: Math.abs(v), dir, tone, unit: points ? "pts" : "%" };
+}
 
 // Part of the period falls outside the data on file → the reader is told, so a
 // half-month is never read as a slow month.
@@ -119,6 +135,12 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
   const havePrev = prevRange[1] >= dayMin && prev.length > 0;
   const T = sumPeriod(days, range), P = havePrev ? sumPeriod(days, prevRange) : null;
   const noun = NOUN[grain];
+  // A period only partly on file is compared PER DAY, or a 21-day September
+  // reads as a 41% collapse against a 31-day August. k scales the previous
+  // period to the current one's days on file.
+  const pcov = coverage(prevKey, grain, dayMin, dayMax);
+  const k = cov.partial && pcov.days ? cov.days / pcov.days : 1;
+  const perDay = cov.partial ? " per day" : "";
   const cards = [];
   const card = (c) => cards.push(c);
   if (!cur.length) return { cards, cov, empty: true };
@@ -137,13 +159,17 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
   // 1 · press time
   {
     const bits = [];
-    const c = change(T.busy, P?.busy);
-    if (c) bits.push(`${c} ${prevWord[grain]} (${hrs(P.busy)})`);
+    const c = change(T.busy, P ? P.busy * k : null);
+    // partial period: "12% less per day than last month"
+    if (c) bits.push(cov.partial ? `${c === "the same as" ? "the same per day as" : c.replace(" than", " per day than")} ${prevWord[grain]}` : `${c} ${prevWord[grain]} (${hrs(P.busy)})`);
     if (typical) bits.push(`a typical ${noun} is ${hrs(typical)}`);
     const record = !cov.partial && best && best[0] === key && allFull.length >= 3;
+    const spark = []; for (let i = 11; i >= 0; i--) { const k = shiftPeriod(key, grain, -i); if (periodRange(k, grain)[1] >= dayMin) spark.push(Math.round((periods.get(k) || 0) / 3600)); }
     card({
       id: "busy", icon: "clock", tone: record ? "hot" : "info",
       title: record ? `Busiest ${noun} on record` : "Press time",
+      g: { big: Math.round(T.busy / 3600).toLocaleString("en-US"), unit: "h", label: ships.length > 1 ? `press time · ${ships.length} presses` : "press time",
+        delta: delta(T.busy, P ? P.busy * k : null), perDay: !!perDay, badge: record ? "RECORD" : cov.partial ? `${cov.days}/${cov.of} days` : null, viz: { kind: "spark", values: spark } },
       html: `The press was busy <b>${hrs(T.busy)}</b>${presses}${bits.length ? ` — ${bits.join("; ")}` : ""}.${cov.partial ? ` <span class="part">Only ${cov.days} of ${cov.of} days are on file.</span>` : ""}`,
       go: { tab: "overview" },
     });
@@ -157,6 +183,7 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     card({
       id: "stall", icon: "alert", tone: share >= 30 ? "warn" : "info",
       title: "Stalled time",
+      g: { big: hrs(T.stall).replace(" h", ""), unit: "h", label: "stalled past normal", delta: pShare == null ? null : delta(share, pShare, { points: true, bad: "up" }), viz: { kind: "ring", pct: share, tone: "stall" } },
       html: `<b>${share}%</b> of press time was stalled — ${hrs(T.stall)}${trend}.${worst[0] ? ` Worst: <b>${esc(docName(worst[0].key))}</b> on ${esc(worst[0].ship)}, ${dur(worst[0].stallS)} past normal.` : ""}`,
       go: { tab: "stalls" },
     });
@@ -170,6 +197,7 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     const hhmm = (ms) => new Date(ms).toISOString().slice(11, 16);
     card({
       id: "when", icon: "cal", tone: "info", title: "Shape of the day",
+      g: { big: `${String(h).padStart(2, "0")}:00`, label: "busiest hour", sub: first ? `${hhmm(first)} → ${hhmm(last)}` : null, viz: { kind: "bars", values: T.hours.map((x) => Math.round(x / 60)), hi: h } },
       html: `First job started <b>${first ? hhmm(first) : "—"}</b>, last ended <b>${hhmm(last)}</b>. Busiest hour: <b>${String(h).padStart(2, "0")}:00–${String((h + 1) % 24).padStart(2, "0")}:00</b> (${Math.round(T.hours[h] / 60)} min).`,
       go: { tab: "workload" },
     });
@@ -178,8 +206,11 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     const dj = cur.filter((j) => j.day === d);
     const top = groupTop(dj, (j) => j.cat, (j) => j.runS || 0);
     const idle = cov.days - T.perDay.length;
+    const byDate = T.perDay.slice().sort((a, b) => (a[0] < b[0] ? -1 : 1));
     card({
       id: "when", icon: "cal", tone: "info", title: `Busiest day of the ${noun}`,
+      g: { big: grain === "year" ? `${+d.slice(8)} ${MON[+d.slice(5, 7) - 1]}` : `${WD[weekday(d)]} ${+d.slice(8)}`, label: "busiest day", sub: `${hrs(s)} · ${n0(dj.length)} jobs`,
+        viz: grain === "year" ? null : { kind: "bars", values: byDate.map(([, v]) => Math.round(v / 3600)), hi: byDate.findIndex(([x]) => x === d) } },
       html: `<b>${periodLabel(d, "day")}</b>: ${hrs(s)} busy${presses}, ${n0(dj.length)} jobs${top ? `, mostly ${esc(top[0])}` : ""}.${idle > 0 && grain !== "year" ? ` ${idle} day${idle > 1 ? "s" : ""} with no jobs logged.` : ""}`,
       go: { day: d, tab: "jobs" },
     });
@@ -202,8 +233,10 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
       }
       if (mover && Math.abs(mover[1]) < 3600) mover = null; // under an hour is noise, not news
     }
+    const top4 = [...now.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n, v]) => ({ name: n, v: Math.round(v / 3600) }));
     if (top && many) card({
       id: "dept", icon: "people", tone: "info", title: byDept ? "Departments" : "Ships",
+      g: { big: top[0], label: `${pct(top[1], tot)}% of press time`, viz: { kind: "hbars", rows: top4 }, text: true },
       html: `<b>${esc(top[0])}</b> used the most press time: ${hrs(top[1])}, ${pct(top[1], tot)}% of the ${noun}.${mover ? ` Biggest change: <b>${esc(mover[0])}</b> ${mover[1] > 0 ? "up" : "down"} ${hrs(Math.abs(mover[1]))} on ${prevWord[grain]} (${hrs(mover[2])} → ${hrs(mover[3])}).` : ""}`,
       go: byDept ? { depts: [top[0]], tab: "printed" } : { ships: [top[0]], tab: "overview" },
     });
@@ -221,6 +254,7 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     const canSayNew = jobs.some((j) => j.day < range[0]);
     if (top) card({
       id: "docs", icon: "doc", tone: "info", title: "What was printed",
+      g: { big: `×${n0(top[1])}`, label: docName(top[0]), sub: canSayNew && fresh.length ? `${fresh.length} new this ${noun}` : null },
       html: `Most repeated: <b>${esc(docName(top[0]))}</b>, ${n0(top[1])} times.${canSayNew && fresh.length ? ` New this ${noun}: ${fresh.slice(0, 3).map(([k, n]) => `<b>${esc(docName(k))}</b> (${n}×)`).join(", ")}${fresh.length > 3 ? ` and ${fresh.length - 3} more` : ""}.` : ""}`,
       go: { doc: top[0], tab: "printed" },
     });
@@ -232,6 +266,7 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     const longest = done.sort((a, b) => b.runS - a.runS)[0];
     if (longest) card({
       id: "long", icon: "clock", tone: "info", title: "Longest job",
+      g: { big: dur(longest.runS), label: docName(longest.key), sub: `${longest.ship} · ${n0(longest.feed)} sheets`, viz: longest.expS ? { kind: "vs", a: longest.runS, b: longest.expS, la: "took", lb: "normal", lbv: dur(longest.expS) } : null },
       html: `<b>${esc(docName(longest.key))}</b> on ${esc(longest.ship)} (${esc(longest.dept)}): ${dur(longest.runS)} for ${n0(longest.feed)} sheets${longest.expS ? `, normal is ${dur(longest.expS)}` : ""}.`,
       go: { day: longest.day, ships: [longest.ship], tab: "jobs" },
     });
@@ -244,10 +279,11 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     const waste = cur.reduce((a, j) => a + j.waste, 0);
     if (cx.length || waste) {
       const who = groupTop(cx, (j) => j.dept, () => 1);
-      const c = pcx != null ? change(cx.length, pcx) : null;
+      const c = pcx != null ? change(cx.length, pcx * k) : null;
       card({
         id: "cancel", icon: "drop", tone: pct(cx.length, cur.length) >= 10 ? "warn" : "info", title: "Cancels & waste",
-        html: `<b>${n0(cx.length)}</b> jobs cancelled (${pct(cx.length, cur.length)}%)${c ? `, ${c} ${prevWord[grain]}` : ""}; ${n0(waste)} waste sheets.${who && who[1] > 1 && new Set(cx.map((j) => j.dept)).size > 1 ? ` Most from <b>${esc(who[0])}</b> (${who[1]}).` : ""}`,
+        g: { big: n0(cx.length), label: "jobs cancelled", sub: `${n0(waste)} waste sheets`, delta: pcx != null ? delta(cx.length, pcx * k, { bad: "up" }) : null, perDay: !!perDay, viz: { kind: "ring", pct: pct(cx.length, cur.length), tone: "critical" } },
+        html: `<b>${n0(cx.length)}</b> jobs cancelled (${pct(cx.length, cur.length)}%)${c ? `, ${c} ${prevWord[grain]}${perDay}` : ""}; ${n0(waste)} waste sheets.${who && who[1] > 1 && new Set(cx.map((j) => j.dept)).size > 1 ? ` Most from <b>${esc(who[0])}</b> (${who[1]}).` : ""}`,
         go: { result: "Cancel", tab: "jobs" },
       });
     }
@@ -258,10 +294,11 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     const p = paper(cur), q = havePrev ? paper(prev) : null;
     if (p.boxes > 0) {
       const bx = (v) => (v > 0 && v < 1 ? "<1" : n0(v));
-      const c = q && q.boxes ? change(p.boxes, q.boxes) : null;
+      const c = q && q.boxes ? change(p.boxes, q.boxes * k) : null;
       card({
-        id: "paper", icon: "doc", tone: "info", title: "Paper used",
-        html: `About <b>${bx(p.boxes)} boxes</b> (${p.pallets >= 1 ? `${Math.round(p.pallets)} pallet${p.pallets >= 1.5 ? "s" : ""}` : "under a pallet"}): ${bx(p.letterBoxes)} of 8.5×11, ${bx(p.tabloidBoxes)} of 11×17${c ? ` — ${c} ${prevWord[grain]}` : ""}. <span class="part">Size assumed from the tray.</span>`,
+        id: "paper", icon: "box", tone: "info", title: "Paper used",
+        g: { big: bx(p.boxes), unit: "boxes", label: "paper used", sub: `${bx(p.letterBoxes)} letter · ${bx(p.tabloidBoxes)} 11×17`, badge: "size assumed", delta: q && q.boxes ? delta(p.boxes, q.boxes * k) : null, perDay: !!perDay, viz: { kind: "pallet", boxes: Math.round(p.boxes), per: 40 } },
+        html: `About <b>${bx(p.boxes)} boxes</b> (${p.pallets >= 1 ? `${Math.round(p.pallets)} pallet${p.pallets >= 1.5 ? "s" : ""}` : "under a pallet"}): ${bx(p.letterBoxes)} of 8.5×11, ${bx(p.tabloidBoxes)} of 11×17${c ? ` — ${c} ${prevWord[grain]}${perDay}` : ""}. <span class="part">Size assumed from the tray.</span>`,
         go: { tab: "overview" },
       });
     }
@@ -273,11 +310,12 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     const a = share(cur), b = share(prev);
     if (a != null && b != null && Math.abs(a - b) >= 3) card({
       id: "color", icon: "doc", tone: "info", title: "Colour mix",
+      g: { big: String(Math.round(a)), unit: "%", label: "colour clicks", delta: delta(a, b, { points: true }), viz: { kind: "ring", pct: Math.round(a), tone: "print" } },
       html: `Colour was <b>${Math.round(a)}%</b> of clicks, ${a > b ? "up" : "down"} from ${Math.round(b)}% ${prevWord[grain]}.`,
       go: { tab: "overview" },
     });
   }
-  return { cards, cov, empty: false };
+  return { cards, cov, empty: false, vs: vsLabel(key, grain) };
 }
 
 function groupAll(js, k, v) { const m = new Map(); for (const j of js) m.set(k(j), (m.get(k(j)) || 0) + v(j)); return m; }

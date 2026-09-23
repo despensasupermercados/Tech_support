@@ -38,3 +38,16 @@ test("an empty period says so", () => {
   const r = insights({ jobs: [J("Quest", "2026-01-05 10:00:00", 60)], key: "2026-03", grain: "month", bases: {}, dayMin: "2026-01-01", dayMax: "2026-03-31" });
   assert.equal(r.empty, true);
 });
+
+test("a partly-on-file period is compared per day, never as a collapse", () => {
+  // 10 days of a 30-day month at 1 h/day vs a full previous month at 1 h/day = flat per day
+  const jobs = [];
+  for (let d = 1; d <= 31; d++) jobs.push(J("Quest", `2026-08-${String(d).padStart(2, "0")} 10:00:00`, 3600));
+  for (let d = 1; d <= 10; d++) jobs.push(J("Quest", `2026-09-${String(d).padStart(2, "0")} 10:00:00`, 3600));
+  const r = insights({ jobs, key: "2026-09", grain: "month", bases: { Quest: { setupS: 50, secPerSheet: 4 } }, dayMin: "2026-08-01", dayMax: "2026-09-10" });
+  const busy = r.cards.find((c) => c.id === "busy");
+  assert.equal(busy.g.delta.dir, "flat");
+  assert.equal(busy.g.perDay, true);
+  assert.match(busy.html, /the same per day as last month/);
+  assert.equal(busy.g.badge, "10/30 days");
+});
