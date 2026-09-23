@@ -25,7 +25,7 @@ import { sendReminder } from "./remind.js";
 
 export const REMIND_CRON = "0 13 1 * *";
 
-export const VERSION = "2026-09-24a";
+export const VERSION = "2026-09-24b";
 const CHUNK_MAX = 500;
 const FLEET_SET = new Set(FLEET);
 const TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;

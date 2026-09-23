@@ -50,6 +50,12 @@ input[type=checkbox] { accent-color: var(--brand); width: 15px; height: 15px; }
 .scope { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); padding: 0 0 10px; }
 .scope .lab { font-family: var(--mono); font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-3); }
 .scope b { color: #fff; font-weight: 600; }
+.scope .clk { margin-left: auto; display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.scope .clk button { font: inherit; font-size: 11.5px; padding: 3px 10px; background: transparent; color: var(--ink-3); border: 0; cursor: pointer; }
+.scope .clk button.on { background: rgba(57,135,229,.18); color: #fff; }
+.where { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #cfe2fa; background: rgba(57,135,229,.12); border-radius: 999px; padding: 1px 8px; }
+.where.est { color: var(--ink-3); background: rgba(255,255,255,.05); }
+.where svg { width: 12px; height: 12px; }
 .scope.narrow { color: #f6d9a8; } .scope.narrow .lab { color: var(--warn); }
 .scope.narrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
 /* insights */
@@ -290,7 +296,7 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
 @keyframes sp { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 .fade { animation: fd .25s ease both; } @keyframes fd { from { opacity: 0; transform: translateY(4px); } }
-@media (max-width: 700px) { .filters { position: static; } .search { max-width: none; } .kpi .v { font-size: 25px; } }
+@media (max-width: 700px) { .filters { position: static; } .search { max-width: none; } .kpi .v { font-size: 25px; } .kpi .v.tight { font-size: 20px; letter-spacing: -.6px; } }
 </style>
 </head>
 <body>
@@ -334,13 +340,14 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
 </main>
 <nav class="bnav" id="bnav" hidden></nav>
 <div class="bsheet" id="bsheet" hidden></div>
-<footer class="foot"><span>Powered by DG3 · CIMS · Machine time from the press job log (ship's clock). Not labour hours.</span><button class="watchbtn" id="watchBtn" hidden></button><span class="mono" id="foot">cims-print · report</span></footer>
+<footer class="foot"><span>Powered by DG3 · CIMS · Machine time from the press job log, in ship time. Not labour hours.</span><button class="watchbtn" id="watchBtn" hidden></button><span class="mono" id="foot">cims-print · report</span></footer>
 <div class="modal" id="watchModal" hidden><div class="card mbox"><div class="ph"><div><h2>Night watch</h2><p id="watchWhen"></p></div><button class="btn" id="watchClose">Close</button></div><div id="watchList"></div></div></div>
 
 <script src="vendor/echarts.min.js"></script>
 <script type="module">
 import { baseline, split, busyIntervals, printIntervals, spreadByHour, billed, dur, CPC, STALL_JOB_S, TOLERANCE, quantile, expectedS, ms, dayProfiles, paper, PAPER } from "./lib/metrics.js";
 import { category, docKey, dept, CATEGORIES } from "./lib/classify.js";
+import { itinerary, shipClock, offsetMin, utcLabel, PRESS_TZ } from "./lib/shiptime.js";
 import { insights as buildInsights, dailyBusy, periodOf, periodRange as pRange, shiftPeriod, periodLabel, coverage, GRAINS } from "./lib/insights.js";
 
 // ---------------------------------------------------------------- helpers
@@ -383,19 +390,40 @@ let SHIPS = [];          // ships on file, stable colour order
 const BASE = {};         // ship → yardstick (on ALL of that ship's jobs)
 let DAY_MIN = null, DAY_MAX = null;
 
+// Times: the press clock is fixed UTC−5 on every ship; the report shows ship
+// time — the zone of the port the ship's own documents put it in that day
+// (lib/shiptime.js). S.clk = "press" shows the raw press clock instead.
+let PACKS = [];
+const ITIN = {};          // ship → { days: Map(day → {tz, place, how}), unplaced }
+let DERIVED = null;       // the clock ALL was built on
+
 async function load() {
   const sum = await fetch("api/summary").then((r) => r.json());
   if (!sum.ships.length) return false;
   SHIPS = sum.ships.map((s) => s.ship).sort();
-  const packs = await Promise.all(SHIPS.map((s) => fetch(`api/jobs?ship=${encodeURIComponent(s)}`).then((r) => r.json())));
-  for (const p of packs) {
+  PACKS = await Promise.all(SHIPS.map((s) => fetch(`api/jobs?ship=${encodeURIComponent(s)}`).then((r) => r.json())));
+  for (const p of PACKS) {
+    const iF = p.cols.indexOf("file"), iE = p.cols.indexOf("end_ts");
+    ITIN[p.ship] = itinerary(p.data[iE].map((endTs, i) => ({ endTs, file: p.dicts.file[p.data[iF][i]] || null })));
+  }
+  derive();
+  return true;
+}
+
+function derive() {
+  ALL = [];
+  DERIVED = S.clk;
+  for (const p of PACKS) {
     const col = (c) => p.data[p.cols.indexOf(c)];
     const d = Object.fromEntries(p.cols.map((c) => [c, col(c)]));
+    const ck = S.clk === "press" ? null : shipClock(ITIN[p.ship]);
     const jobs = [];
     for (let i = 0; i < p.n; i++) {
       const file = p.dicts.file[d.file[i]] || null;
+      const pressTs = d.end_ts[i];
+      const c = ck ? ck(pressTs) : null;
       const j = {
-        ship: p.ship, jobId: d.job_id[i], endTs: d.end_ts[i], runS: d.run_s[i], waitS: d.wait_s[i],
+        ship: p.ship, jobId: d.job_id[i], endTs: c ? c.ts : pressTs, pressTs, tz: c ? c.tz : PRESS_TZ, runS: d.run_s[i], waitS: d.wait_s[i],
         mode: p.dicts.mode[d.mode[i]], user: p.dicts.user[d.user[i]], result: p.dicts.result[d.result[i]], tray: p.dicts.tray[d.tray[i]],
         pages: d.pages[i], sheets: d.sheets[i], outSets: d.out_sets[i], color: d.color[i] || 0, black: d.black[i] || 0,
         feed: d.feed[i] || 0, waste: d.waste[i] || 0, file,
@@ -416,12 +444,28 @@ async function load() {
   buildDocNames();
   DAY_MIN = ALL[0]?.day; DAY_MAX = ALL[ALL.length - 1]?.day;
   $("#datachip").textContent = `${n0(ALL.length)} jobs · ${SHIPS.length} ship${SHIPS.length > 1 ? "s" : ""} · ${fday(DAY_MIN)} – ${fday(DAY_MAX)}`;
-  return true;
+}
+// Where a ship was on a day (ship-time view): "⚓ Lisbon, Portugal · UTC+1", and
+// whether a document on the day says so or it is carried from the nearest port.
+function whereLine(ship, day) {
+  if (S.clk === "press") return `<span class="where est" title="Raw press clock — the same fixed UTC−5 on every ship">${ICON.clock} Press clock · UTC−5</span>`;
+  const e = ITIN[ship]?.days.get(day);
+  if (!e) return `<span class="where est" title="No port on file near this day — press clock shown">${ICON.clock} Press clock · UTC−5</span>`;
+  const off = utcLabel(offsetMin(e.tz, Date.parse(day + "T12:00:00Z")));
+  const place = e.place.replace(/^(insert|embarkation|debark)\s+i\s+/i, "").replace(/\s+/g, " ").trim();
+  const t = e.how === "port" ? "Port from the ship's own documents for this day" : "No document names a port this day — zone carried from the nearest port day";
+  return `<span class="where${e.how === "port" ? "" : " est"}" title="${t}">⚓ ${esc(place.length > 34 ? place.slice(0, 33) + "…" : place)} · ${off}${e.how === "port" ? "" : " · est."}</span>`;
+}
+// Share of the ship-days in view whose zone comes from a document for that day.
+function placedShare(ships, a, b) {
+  let n = 0, port = 0;
+  for (const s of ships) for (let d = a; d <= b; d = addDays(d, 1)) { const e = ITIN[s]?.days.get(d); if (!e) continue; n++; if (e.how === "port") port++; }
+  return { n, port };
 }
 const shipColor = (s) => SERIES[SHIPS.indexOf(s) % 8];
 
 // ---------------------------------------------------------------- state (lives in the URL, so a view can be sent as a link)
-const DEFAULT = { tab: "insights", ig: "month", ik: "", lens: "fleet", lv: "", wship: "", gday: "", ships: [], period: "all", from: "", to: "", depts: [], cats: [], color: "all", result: "all", q: "", doc: "", hour: "", wd: "", day: "", money: false, metric: "hours" };
+const DEFAULT = { tab: "insights", ig: "month", ik: "", lens: "fleet", lv: "", clk: "ship", wship: "", gday: "", ships: [], period: "all", from: "", to: "", depts: [], cats: [], color: "all", result: "all", q: "", doc: "", hour: "", wd: "", day: "", money: false, metric: "hours" };
 let S = { ...DEFAULT };
 function readHash() {
   const h = new URLSearchParams(location.hash.slice(1));
@@ -619,8 +663,9 @@ function syncControls() {
   const narrowed = S.ships.length && S.ships.length < SHIPS.length;
   const dates = S.tab === "insights" ? "period set below" : `${fday(pa)} – ${fday(pb)}`;
   $("#scope").className = "scope" + (narrowed || chips.length || S.period !== "all" ? " narrow" : "");
-  $("#scope").innerHTML = `<span class="lab">Showing</span> <b>${narrowed ? `${S.ships.join(" + ")} — ${S.ships.length} of ${SHIPS.length} ships` : `all ${SHIPS.length} ships`}</b> · <b>${dates}</b>${chips.length ? ` · ${chips.length} more filter${chips.length > 1 ? "s" : ""}` : ""}${narrowed ? ` <button class="linkbtn" id="allShips">Show all ${SHIPS.length} ships</button>` : ""}`;
+  $("#scope").innerHTML = `<span class="lab">Showing</span> <b>${narrowed ? `${S.ships.join(" + ")} — ${S.ships.length} of ${SHIPS.length} ships` : `all ${SHIPS.length} ships`}</b> · <b>${dates}</b>${chips.length ? ` · ${chips.length} more filter${chips.length > 1 ? "s" : ""}` : ""}${narrowed ? ` <button class="linkbtn" id="allShips">Show all ${SHIPS.length} ships</button>` : ""}<span class="clk" role="group" aria-label="Clock"><button data-c="ship" class="${S.clk !== "press" ? "on" : ""}" title="Each job in the time zone of the port the ship was at that day">⚓ Ship time</button><button data-c="press" class="${S.clk === "press" ? "on" : ""}" title="The press's own clock: fixed UTC−5 (Miami winter time) on every ship">Press clock</button></span>`;
   const as = $("#allShips"); if (as) as.onclick = () => set({ ships: [] });
+  $$("#scope .clk button").forEach((b) => (b.onclick = () => set({ clk: b.dataset.c })));
   const onIns = S.tab === "insights";
   $("#fPeriod").hidden = onIns; if (onIns) { $("#fFrom").hidden = $("#fTo").hidden = true; }
   const any = chips.length || S.ships.length || S.period !== "all" || S.color !== "all" || S.result !== "all";
@@ -985,7 +1030,7 @@ function workload({ jobs, a, b, k }) {
     <div class="card kpi" style="--kc:${C.print}"><div class="v">${dur(med(pdays.map((x) => x.busy))).replace(/ (h|min)/g, "<small>$1</small>")}</div><div class="l">worked per press, per day</div><div class="d">typical day with printing</div></div>
     <div class="card kpi"><div class="v">${dur(med(pdays.map((x) => x.window))).replace(/ (h|min)/g, "<small>$1</small>")}</div><div class="l">working window</div><div class="d">first job start → last job end</div></div>
     <div class="card kpi"><div class="v">${pct(sumBusy, sumWin)}<small>%</small></div><div class="l">of the window actually printing</div><div class="d">the rest is idle between jobs</div></div>
-    <div class="card kpi"><div class="v">${clock(med(pdays.map((x) => x.first)))}<small>→</small>${clock(med(pdays.map((x) => x.last)))}</div><div class="l">typical start → finish</div><div class="d">ship's clock</div></div>
+    <div class="card kpi"><div class="v tight">${clock(med(pdays.map((x) => x.first)))}<small>→</small>${clock(med(pdays.map((x) => x.last)))}</div><div class="l">typical start → finish</div><div class="d">${S.clk === "press" ? "press clock (UTC−5)" : "ship time"}</div></div>
     <div class="card kpi"><div class="v">${Math.round(perShipDays.reduce((t, x) => t + x, 0) / Math.max(1, ships.length))}<small>/ ${nDays}</small></div><div class="l">days worked, per press</div><div class="d">${ships.length > 1 ? ships.map((s, i) => `${esc(s)} ${perShipDays[i]}`).join(" · ") : "days with at least one job"}</div></div>
     <div class="card kpi" style="--kc:${C.stall}"><div class="v">${noBase.length ? "—" : dur(med(pdays.map((x) => x.stall))).replace(/ (h|min|s)$/g, "<small>$1</small>")}</div><div class="l">stalled, per press per day</div><div class="d">${top ? `longest day: ${dur(top.busy)} · ${esc(top.s)} ${fdayShort(top.d)}` : ""}</div></div>
   </div>
@@ -1010,7 +1055,7 @@ function workload({ jobs, a, b, k }) {
       <div class="tbl-wrap d-only"><table class="t"><thead><tr><th>Ship</th>${WD.map((w) => `<th class="num">${w}</th>`).join("")}<th class="num">Start</th><th class="num">Finish</th><th class="num">Busiest 10%</th></tr></thead><tbody>
       ${ships.map((s) => { const ds = pdays.filter((x) => x.s === s); return `<tr><td><span class="dot" style="background:${shipColor(s)}"></span> ${esc(s)}</td>${WD.map((_, wd) => { const v = ds.filter((x) => (new Date(x.d + "T00:00:00Z").getUTCDay() + 6) % 7 === wd); return `<td class="num">${v.length ? `<b style="color:#fff">${dur(med(v.map((x) => x.busy)))}</b><div class="muted" style="font-size:11px">${v.length}/${wdCount[wd]} days</div>` : "—"}</td>`; }).join("")}<td class="num">${clock(med(ds.map((x) => x.first)))}</td><td class="num">${clock(med(ds.map((x) => x.last)))}</td><td class="num">${dur(quantile(ds.map((x) => x.busy).sort((x, y) => x - y), 0.9))}</td></tr>`; }).join("")}
       </tbody></table></div>
-      <div class="method">All hours are <b>machine time</b> from the press's own start and end times, on the ship's clock. The log does not record who stood at the press, so these are not labour hours. A job across midnight counts on both days.</div></div>
+      <div class="method">All hours are <b>machine time</b> from the press's own start and end times, ${S.clk === "press" ? "on the raw press clock (fixed UTC−5 on every ship)" : `in <b>ship time</b>: the press clock is fixed on UTC−5 (Miami winter time), so each job is moved to the time zone of the port the ship's own day planners and inserts name for that day${(() => { const q = placedShare(ships, a, b); return q.n ? ` — ${pct(q.port, q.n)}% of these ship-days are named by a document; the rest carry the nearest port's zone (marked est.)` : ""; })()}`}. The log does not record who stood at the press, so these are not labour hours. A job across midnight counts on both days.</div></div>
 
     <div class="card panel c12"><div class="ph"><div><h2>When the press is busy</h2><p>Average minutes busy in each hour, per press, over ${n0(nDays)} days. Darker = busier. Click a cell to see the jobs that started in that hour.</p></div></div><div class="chart" id="chHeat" style="height:300px"></div></div>
     <div class="card panel c12"><div class="ph"><div><h2>Busiest days</h2><p>Click a day to open it on the timeline.</p></div></div>
@@ -1046,7 +1091,7 @@ function workload({ jobs, a, b, k }) {
       renderItem: (params, api) => { const s0 = api.coord([api.value(1), api.value(0)]), s1 = api.coord([api.value(2), api.value(0)]); const kind = blocks[params.dataIndex].kind;
         return { type: "rect", shape: { x: s0[0], y: s0[1] - H / 2, width: Math.max(1.5, s1[0] - s0[0]), height: H, r: 3 }, style: { fill: kind === "print" ? C.print : C.stall, stroke: css("--card"), lineWidth: 1 } }; } }],
   });
-  $("#gSum").innerHTML = ships.map((s) => { const p = prof[s][gday]; return `<span><i class="dot" style="background:${shipColor(s)}"></i><b style="color:#fff">${esc(s)}</b>&nbsp;${p ? `${clock(p.first)}→${clock(p.last)} · <b style="color:#fff">${dur(p.busy)}</b><span class="m-hide"> worked of a ${dur(p.window)} window</span>${p.stall >= 60 && BASE[s] ? ` · <span style="color:${C.stall}">${dur(p.stall)} stalled</span>` : ""}` : "no jobs"}</span>`; }).join("");
+  $("#gSum").innerHTML = ships.map((s) => { const p = prof[s][gday]; return `<span><i class="dot" style="background:${shipColor(s)}"></i><b style="color:#fff">${esc(s)}</b>&nbsp;${whereLine(s, gday)}&nbsp;${p ? `${clock(p.first)}→${clock(p.last)} · <b style="color:#fff">${dur(p.busy)}</b><span class="m-hide"> worked of a ${dur(p.window)} window</span>${p.stall >= 60 && BASE[s] ? ` · <span style="color:${C.stall}">${dur(p.stall)} stalled</span>` : ""}` : "no jobs"}</span>`; }).join("");
   const ws = $("#wShip"); if (ws) ws.onclick = (e) => { const bt = e.target.closest("button"); if (bt) set({ wship: bt.dataset.s }); };
 
   // ---- actogram: one column per day, 00 at top
@@ -1301,9 +1346,9 @@ function jobsTab({ jobs }) {
   };
   draw();
   $("#csv").onclick = () => {
-    const head = ["ship", "job_id", "ended", "department", "document_type", "file_name", "result", "sheets", "colour_clicks", "black_clicks", "run_seconds", "normal_seconds", "stalled_seconds", "billed_usd"];
+    const head = ["ship", "job_id", "ended", "time_zone", "ended_press_clock_utc-5", "department", "document_type", "file_name", "result", "sheets", "colour_clicks", "black_clicks", "run_seconds", "normal_seconds", "stalled_seconds", "billed_usd"];
     const q = (v) => (v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v);
-    const lines = [head.join(",")].concat(jobs.map((j) => [j.ship, j.jobId, j.endTs, j.dept, j.cat, j.file, j.result, j.feed, j.color, j.black, j.runS, j.expS == null ? "" : Math.round(j.expS), j.stallS == null ? "" : Math.round(j.stallS), j.value.toFixed(2)].map(q).join(",")));
+    const lines = [head.join(",")].concat(jobs.map((j) => [j.ship, j.jobId, j.endTs, j.tz, j.pressTs, j.dept, j.cat, j.file, j.result, j.feed, j.color, j.black, j.runS, j.expS == null ? "" : Math.round(j.expS), j.stallS == null ? "" : Math.round(j.stallS), j.value.toFixed(2)].map(q).join(",")));
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `print-jobs-${periodRange().join("_")}.csv`; a.click();
   };
@@ -1337,7 +1382,7 @@ async function nightWatch() {
   $("#foot").textContent = `cims-print · $ at ${CPC.label} [${CPC.source}]`;
   buildControls(); syncControls(); render();
   nightWatch();
-  addEventListener("hashchange", () => { readHash(); syncControls(); render(); });
+  addEventListener("hashchange", () => { readHash(); if (S.clk !== DERIVED) derive(); syncControls(); render(); });
 })();
 </script>
 </body>
