@@ -148,6 +148,52 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
 .wrow .st { flex: none; font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px; width: 44px; padding-top: 2px; color: var(--ink-3); }
 .wrow .st.ok { color: #6bd46b; } .wrow .st.warn { color: var(--warn); } .wrow .st.fail { color: #f08080; }
 .wrow b { color: #fff; font-weight: 600; font-size: 13.5px; } .wrow div div { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; }
+/* ---------- phone ---------- */
+.fbtn { display: none; font-weight: 600; cursor: pointer; }
+.fbtn .cnt { font-family: var(--mono); font-size: 10.5px; background: var(--brand); color: #07210a; border-radius: 6px; padding: 1px 6px; }
+.fmore { display: contents; }
+.hs { position: relative; }
+@media (max-width: 700px) {
+  .wrap { padding: 0 12px; }
+  .mast { padding: 8px 12px; }
+  .frow { gap: 8px; padding: 8px 0; }
+  #fShip { flex-wrap: nowrap; overflow-x: auto; max-width: calc(100% - 100px); scrollbar-width: none; }
+  #fShip::-webkit-scrollbar { display: none; }
+  #fShip button { flex: none; }
+  .fbtn { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+  .fmore { display: none; width: 100%; flex-wrap: wrap; gap: 8px; }
+  .fmore.open { display: flex; }
+  .fmore > .ctl, .fmore > .dd, .fmore > select { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  .fmore > .dd > button { width: 100%; justify-content: space-between; }
+  .fmore .search { flex: 1 1 100%; max-width: none; }
+  .pop { left: 0; right: auto; min-width: min(300px, 86vw); }
+  .scope { font-size: 12px; padding-bottom: 8px; }
+  .tabs { position: sticky; top: 49px; z-index: 35; background: rgba(10,15,22,.96); backdrop-filter: blur(12px); margin: 0 -12px; padding: 6px 12px 0; scroll-snap-type: x proximity;
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .tabs button { padding: 9px 11px; font-size: 13.5px; scroll-snap-align: start; }
+  .tabline { margin-bottom: 12px; }
+  .grid { gap: 10px; }
+  .panel { padding: 13px 13px; border-radius: 12px; }
+  .ph { margin-bottom: 6px; }
+  .ph h2 { font-size: 15px; }
+  .kpis { gap: 8px; }
+  .kpi { padding: 11px 12px; }
+  .kpi .v { font-size: clamp(18px, 5.6vw, 22px); letter-spacing: -.3px; white-space: nowrap; }
+  .kpi .v small { font-size: 12px; }
+  .kpi .l { font-size: 12px; } .kpi .d { font-size: 10.5px; }
+  .chart { height: 280px; } .chart.tall { height: 380px; }
+  /* time charts and tables keep a readable width and swipe sideways */
+  .hs { overflow-x: auto; margin: 0 -13px; padding: 0 13px; -webkit-overflow-scrolling: touch; }
+  .hs > .chart { min-width: 760px; }
+  .hs::after, .tbl-wrap::before { content: "⟵ swipe ⟶"; display: block; text-align: center; font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px; color: var(--ink-3); padding-top: 4px; position: sticky; left: 0; }
+  .tbl-wrap::before { padding: 4px 0; }
+  table.t { min-width: 640px; }
+  .legend { gap: 8px 12px; font-size: 11.5px; }
+  .ibar { gap: 8px; }
+  .icards, .icols { grid-template-columns: 1fr; }
+  .icard { padding: 12px; }
+  footer.foot { padding: 12px 12px 24px; }
+}
 .empty { padding: 60px 20px; text-align: center; color: var(--ink-3); }
 .empty h2 { color: var(--ink); margin-bottom: 8px; }
 .loading { display: grid; place-items: center; min-height: 50vh; color: var(--ink-3); gap: 12px; }
@@ -173,6 +219,8 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
   <div class="wrap">
     <div class="frow">
       <div class="seg" id="fShip"></div>
+      <button class="ctl fbtn" id="fBtn" aria-expanded="false">Filters <span class="cnt" id="fCnt" hidden></span> ▾</button>
+      <div class="fmore" id="fmore">
       <select class="ctl" id="fPeriod" aria-label="Period">
         <option value="all">All dates on file</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option>
         <option value="90">Last 90 days</option><option value="mtd">This month</option><option value="lm">Last month</option>
@@ -185,6 +233,7 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
       <select class="ctl" id="fResult" aria-label="Result"><option value="all">All results</option><option value="Complete">Completed</option><option value="Cancel">Cancelled</option></select>
       <input class="ctl search" id="fQ" type="search" placeholder="Search file names…" aria-label="Search file names">
       <label class="toggle" id="fMoney" title="Billed value at the 2026 Azamara rate card"><i></i>$ value</label>
+      </div>
     </div>
     <div class="scope" id="scope"></div>
     <div class="active" id="active"></div>
@@ -386,8 +435,11 @@ function groupBy(jobs, keyFn, valFn) {
 
 // ---------------------------------------------------------------- charts
 const charts = new Map();
+// Charts read along a time axis: on a phone they keep a readable width and swipe.
+const WIDE = new Set(["chGantt", "chActo", "chDayHrs", "chHeat", "chMx", "chShip", "chDaily", "chStH", "chWs"]);
 function chart(id, option, onClick) {
   const el = document.getElementById(id); if (!el) return;
+  if (WIDE.has(id) && !el.parentElement.classList.contains("hs")) { const w = document.createElement("div"); w.className = "hs"; el.replaceWith(w); w.appendChild(el); }
   let c = charts.get(id);
   if (c && c.getDom() !== el) { c.dispose(); c = null; }
   if (!c) { c = echarts.init(el, null, { renderer: "canvas" }); charts.set(id, c); }
@@ -425,6 +477,7 @@ function buildControls() {
   $("#fColor").onchange = (e) => set({ color: e.target.value });
   $("#fResult").onchange = (e) => set({ result: e.target.value });
   let qt; $("#fQ").oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => set({ q: e.target.value.trim() }), 250); };
+  $("#fBtn").onclick = () => { const m = $("#fmore"); const o = m.classList.toggle("open"); $("#fBtn").setAttribute("aria-expanded", o); };
   $("#fMoney").onclick = () => set({ money: !S.money, metric: S.money && S.metric === "value" ? "hours" : S.metric });
   multi("#ddDept", "depts", () => groupBy(ALL, (j) => j.dept, () => 1).map(([k, n]) => [k, n]));
   multi("#ddCat", "cats", () => { const g = new Map(groupBy(ALL, (j) => j.cat, () => 1)); return CATEGORIES.filter((c) => g.has(c)).map((c) => [c, g.get(c)]); });
@@ -451,6 +504,8 @@ function syncControls() {
   $("#fColor").value = S.color; $("#fResult").value = S.result;
   if (document.activeElement !== $("#fQ")) $("#fQ").value = S.q;
   $("#fMoney").classList.toggle("on", S.money);
+  const nf = (S.period !== "all" && S.tab !== "insights" ? 1 : 0) + S.depts.length + S.cats.length + (S.color !== "all") + (S.result !== "all") + (S.q ? 1 : 0) + (S.money ? 1 : 0);
+  $("#fCnt").hidden = !nf; $("#fCnt").textContent = nf;
   for (const [sel, key] of [["#ddDept", "depts"], ["#ddCat", "cats"]]) { const c = $(`${sel} .cnt`); c.hidden = !S[key].length; c.textContent = S[key].length; }
   // active drill-down chips
   const chips = [];
@@ -500,6 +555,7 @@ function render() {
   const jobs = filtered([a, b]);
   main.innerHTML = `<nav class="tabs" role="tablist">${TABS.map(([k, l]) => `<button role="tab" data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}</button>`).join("")}</nav><div class="tabline"></div><div id="tab" class="fade"></div>`;
   $$(".tabs button").forEach((btn) => (btn.onclick = () => set({ tab: btn.dataset.t })));
+  const on = $(".tabs button.on"); if (on && innerWidth <= 700) on.scrollIntoView({ inline: "center", block: "nearest" });
   if (S.tab === "insights") return insightsTab({ jobs });
   if (!jobs.length) { $("#tab").innerHTML = `<div class="card empty"><h2>No jobs match these filters</h2><p>${fday(a)} – ${fday(b)}. Widen the dates or remove a filter.</p></div>`; return; }
   const ctx = { jobs, a, b, k: kpis(jobs) };
@@ -771,7 +827,7 @@ function workload({ jobs, a, b, k }) {
   </div>
 
   <div class="grid" style="margin-top:14px">
-    <div class="card panel c12"><div class="ph"><div><h2>A day on the presses</h2><p>Every job on ${gday ? `<b style="color:#fff">${WD[(new Date(gday + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(gday)}</b>` : "—"}, hour by hour. Blue is printing, orange is stalled; gaps are the press standing idle. Hover a block for the job.</p></div>
+    <div class="card panel c12"><div class="ph"><div><h2>A day on the presses</h2><p>Every job on ${gday ? `<b style="color:#fff">${WD[(new Date(gday + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(gday)}</b>` : "—"}, hour by hour. Blue is printing, orange is stalled; gaps are the press standing idle. Tap or hover a block for the job.</p></div>
       <div class="inav"><button class="btn" id="gPrev" aria-label="Previous day">‹</button><button class="btn" id="gBusy">Busiest day</button><button class="btn" id="gNext" aria-label="Next day">›</button></div></div>
       <div class="chart" id="chGantt" style="height:${90 + 46 * Math.max(1, ships.length)}px"></div>
       <div id="gSum" class="legend" style="margin-top:6px"></div></div>

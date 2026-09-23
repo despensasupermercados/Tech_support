@@ -4,7 +4,11 @@ import { readFileSync } from "node:fs";
 
 export function makeD1(file = ":memory:") {
   const db = new DatabaseSync(file);
-  for (const f of ["0001_jobs.sql", "0002_watch.sql", "0003_watch_sent.sql"]) db.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), "utf8"));
+  // Re-runnable on a persisted dev DB: an ALTER that already happened is skipped.
+  for (const f of ["0001_jobs.sql", "0002_watch.sql", "0003_watch_sent.sql"]) {
+    try { db.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), "utf8")); }
+    catch (e) { if (!/duplicate column/.test(e.message)) throw e; }
+  }
   const wrap = (sql, args = []) => ({
     sql, args,
     bind: (...a) => wrap(sql, a),
