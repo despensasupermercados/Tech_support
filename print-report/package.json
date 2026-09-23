@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "name": "cims-print",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev": "node scripts/dev.mjs"
+  },
+  "devDependencies": {
+    "xlsx": "^0.18.5"
+  }
+}

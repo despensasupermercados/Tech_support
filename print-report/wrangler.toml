@@ -1,0 +1,24 @@
+name = "cims-print"
+account_id = "7148946ab624fb49a34c77bb04c2f3a7"
+main = "src/worker.js"
+compatibility_date = "2026-08-01"
+
+# ROUTE IS NOT MANAGED FROM CI. Attach once in the Cloudflare dashboard:
+#   Workers & Pages → cims-print → Settings → Domains & Routes → Add route
+#   hon.cims.work/print*   (zone cims.work)
+# The more specific route wins over HON's custom domain, so /print goes here and
+# every other HON path is untouched.
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+
+[observability]
+enabled = true
+
+# Created 2026-09-23 (APAC, same account as cims-hon). Schema: migrations/0001_jobs.sql.
+[[d1_databases]]
+binding = "DB"
+database_name = "cims-print"
+database_id = "a6c4bf30-c41f-4120-ac28-e22119e8001b"
