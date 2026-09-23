@@ -14,12 +14,15 @@
 //   POST /print/api/upload             { fileName, sheet, ship, shipSource, from, to, total } → { id }
 //   POST /print/api/upload/:id/chunk   { jobs:[…] } → { sent, added }
 //   POST /print/api/upload/:id/finish  → the upload row
+//   GET  /print/api/watch              night watch: latest run + last 14
+//   GET  /print/api/watch?run=1        run the checks now (never emails)
 //
 // Everything else under /print is a static asset (public/print/…).
 
 import { FLEET } from "../public/print/lib/parse.js";
+import { runWatch } from "./watch.js";
 
-export const VERSION = "2026-09-23a";
+export const VERSION = "2026-09-23c";
 const CHUNK_MAX = 500;
 const FLEET_SET = new Set(FLEET);
 const TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
@@ -153,7 +156,19 @@ async function jobsFor(env, ship) {
   return json({ ship, ...columnar(res.results) });
 }
 
+async function watch(env, url) {
+  if (url.searchParams.get("run") === "1") return json(await runWatch(env, { trigger: "manual", email: false }));
+  const rows = (await env.DB.prepare("SELECT id, ran_at, trigger, status, checks, emailed FROM watch_runs ORDER BY id DESC LIMIT 14").all()).results;
+  const runs = rows.map((r) => ({ ...r, checks: JSON.parse(r.checks) }));
+  return json({ latest: runs[0] || null, history: runs.map(({ checks, ...r }) => ({ ...r, warn: checks.filter((c) => c.status === "warn").length, fail: checks.filter((c) => c.status === "fail").length })) });
+}
+
 export default {
+  // Night watch — Cloudflare cron (wrangler.toml [triggers]).
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runWatch(env, { trigger: "cron", email: true }).then((r) => console.log(`[watch] ${r.status} · ${r.checks.length} checks · emailed ${r.emailed}`)));
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const p = url.pathname.replace(/\/+$/, "");
@@ -162,6 +177,7 @@ export default {
       if (p === "/print/api/health") return json({ ok: true, app: "cims-print", version: VERSION });
       if (p === "/print/api/summary" && request.method === "GET") return summary(env);
       if (p === "/print/api/jobs" && request.method === "GET") return jobsFor(env, url.searchParams.get("ship"));
+      if (p === "/print/api/watch" && request.method === "GET") return watch(env, url);
       if (p === "/print/api/upload" && request.method === "POST") return startUpload(env, await request.json());
       let m = p.match(/^\/print\/api\/upload\/([0-9a-f-]{36})\/chunk$/);
       if (m && request.method === "POST") return chunk(env, m[1], await request.json());

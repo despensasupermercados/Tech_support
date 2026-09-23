@@ -72,3 +72,25 @@ test("printing + stalled = busy, even with overlapping jobs", async () => {
   assert.equal(busy, 7200);
   assert.equal(busy - printing, 7200 - 675 - 135 - 135);
 });
+
+test("working day: window, busy, idle, and a job across midnight on both days", async () => {
+  const { dayProfiles } = await import("../public/print/lib/metrics.js");
+  const b = { setupS: 50, secPerSheet: 4 };
+  // 08:00–09:00 and 14:00–14:30 on the 1st; 23:50→00:10 across midnight
+  const days = dayProfiles([J("2026-01-01 09:00:00", 3600, 800), J("2026-01-01 14:30:00", 1800, 400), J("2026-01-02 00:10:00", 1200, 280)], b);
+  const d1 = days["2026-01-01"];
+  assert.equal(d1.first, 8 * 3600);
+  assert.equal(d1.last, 24 * 3600);
+  assert.equal(d1.busy, 3600 + 1800 + 600);
+  assert.equal(d1.idle, d1.window - d1.busy);
+  assert.equal(days["2026-01-02"].busy, 600);
+  assert.equal(days["2026-01-02"].first, 0);
+});
+
+test("paper: 11×17 from the fold tray at 2,500 a box, 8.5×11 at 5,000, 40 boxes a pallet", async () => {
+  const { paper } = await import("../public/print/lib/metrics.js");
+  const p = paper([{ tray: "FS Fold", feed: 5000 }, { tray: "FS/OT Main", feed: 10000, result: "Cancel" }]);
+  assert.equal(p.tabloidBoxes, 2);
+  assert.equal(p.letterBoxes, 2, "cancelled jobs still used paper");
+  assert.equal(p.pallets, 4 / 40);
+});

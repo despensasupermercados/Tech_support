@@ -47,6 +47,34 @@ input[type=checkbox] { accent-color: var(--brand); width: 15px; height: 15px; }
 .toggle i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .2s; }
 .toggle.on i { background: var(--brand); } .toggle.on i::after { transform: translateX(14px); }
 
+.scope { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); padding: 0 0 10px; }
+.scope .lab { font-family: var(--mono); font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-3); }
+.scope b { color: #fff; font-weight: 600; }
+.scope.narrow { color: #f6d9a8; } .scope.narrow .lab { color: var(--warn); }
+.scope.narrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+/* insights */
+.ibar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; margin-bottom: 12px; }
+.inav { display: flex; align-items: center; gap: 8px; }
+.inav { flex-wrap: wrap; }
+.inav .per { font-family: var(--display); font-size: 22px; font-weight: 600; color: #fff; min-width: 220px; text-align: center; }
+@media (max-width: 560px) { .inav .per { min-width: 0; font-size: 18px; flex: 1 1 100%; order: -1; text-align: left; } }
+.inav .btn { height: 36px; padding: 0 12px; }
+.part { color: var(--warn); }
+.icards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.icol { display: grid; gap: 10px; align-content: start; }
+.icols { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+.icol h3 { font-family: var(--display); font-size: 17px; display: flex; align-items: center; gap: 8px; padding: 2px 2px 4px; }
+.icard { display: flex; gap: 12px; text-align: left; width: 100%; color: inherit; cursor: pointer; padding: 14px; border-radius: 13px; background: var(--card); border: 1px solid var(--line); transition: border-color .15s, transform .15s; }
+.icard:hover { border-color: var(--line-2); transform: translateY(-1px); }
+.icard .ic { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(95,185,70,.12); color: var(--brand-ink); }
+.icard.warn .ic { background: rgba(236,131,90,.14); color: var(--serious); }
+.icard.hot .ic { background: rgba(250,178,25,.14); color: var(--warn); }
+.icard .t { font-family: var(--mono); font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; color: var(--ink-3); margin-bottom: 3px; }
+.icard.warn .t { color: var(--serious); } .icard.hot .t { color: var(--warn); }
+.icard .x { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+.icard .x b { color: #fff; font-weight: 600; }
+.icard .go { font-size: 11.5px; color: var(--ink-3); margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { .icard:hover { transform: none; } }
 /* tabs */
 .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 16px 0 0; scrollbar-width: none; }
 .tabs button { flex: none; border: 0; background: transparent; color: var(--ink-3); font-weight: 600; font-size: 14px; padding: 10px 14px; border-radius: 10px 10px 0 0; cursor: pointer; border-bottom: 2px solid transparent; }
@@ -111,6 +139,15 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
 .meter { height: 6px; border-radius: 99px; background: var(--card-2); overflow: hidden; min-width: 60px; }
 .meter i { display: block; height: 100%; background: var(--s1); border-radius: 99px; }
 
+.watchbtn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink-2); border-radius: 999px; padding: 4px 11px; font-size: 11.5px; cursor: pointer; }
+.watchbtn i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+.watchbtn.warn i { background: var(--warn); } .watchbtn.fail i { background: var(--critical); }
+.modal { position: fixed; inset: 0; z-index: 90; background: rgba(4,8,12,.6); backdrop-filter: blur(3px); display: grid; place-items: start center; padding: 60px 16px; overflow: auto; }
+.mbox { width: min(720px, 100%); padding: 18px; }
+.wrow { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.wrow .st { flex: none; font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px; width: 44px; padding-top: 2px; color: var(--ink-3); }
+.wrow .st.ok { color: #6bd46b; } .wrow .st.warn { color: var(--warn); } .wrow .st.fail { color: #f08080; }
+.wrow b { color: #fff; font-weight: 600; font-size: 13.5px; } .wrow div div { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; }
 .empty { padding: 60px 20px; text-align: center; color: var(--ink-3); }
 .empty h2 { color: var(--ink); margin-bottom: 8px; }
 .loading { display: grid; place-items: center; min-height: 50vh; color: var(--ink-3); gap: 12px; }
@@ -149,6 +186,7 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
       <input class="ctl search" id="fQ" type="search" placeholder="Search file names…" aria-label="Search file names">
       <label class="toggle" id="fMoney" title="Billed value at the 2026 Azamara rate card"><i></i>$ value</label>
     </div>
+    <div class="scope" id="scope"></div>
     <div class="active" id="active"></div>
   </div>
 </div>
@@ -156,12 +194,14 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
 <main class="wrap" id="main">
   <div class="loading" id="loading"><div class="spin"></div><div>Loading the record…</div></div>
 </main>
-<footer class="foot"><span>Powered by DG3 · CIMS · Machine time from the press job log (ship's clock). Not labour hours.</span><span class="mono" id="foot">cims-print · report</span></footer>
+<footer class="foot"><span>Powered by DG3 · CIMS · Machine time from the press job log (ship's clock). Not labour hours.</span><button class="watchbtn" id="watchBtn" hidden></button><span class="mono" id="foot">cims-print · report</span></footer>
+<div class="modal" id="watchModal" hidden><div class="card mbox"><div class="ph"><div><h2>Night watch</h2><p id="watchWhen"></p></div><button class="btn" id="watchClose">Close</button></div><div id="watchList"></div></div></div>
 
 <script src="vendor/echarts.min.js"></script>
 <script type="module">
-import { baseline, split, busyIntervals, printIntervals, spreadByHour, billed, dur, CPC, STALL_JOB_S, TOLERANCE, quantile, expectedS, ms } from "./lib/metrics.js";
+import { baseline, split, busyIntervals, printIntervals, spreadByHour, billed, dur, CPC, STALL_JOB_S, TOLERANCE, quantile, expectedS, ms, dayProfiles, paper, PAPER } from "./lib/metrics.js";
 import { category, docKey, dept, CATEGORIES } from "./lib/classify.js";
+import { insights as buildInsights, dailyBusy, periodOf, periodRange as pRange, shiftPeriod, periodLabel, coverage, GRAINS } from "./lib/insights.js";
 
 // ---------------------------------------------------------------- helpers
 const $ = (s, r = document) => r.querySelector(s);
@@ -235,7 +275,7 @@ async function load() {
 const shipColor = (s) => SERIES[SHIPS.indexOf(s) % 8];
 
 // ---------------------------------------------------------------- state (lives in the URL, so a view can be sent as a link)
-const DEFAULT = { tab: "overview", ships: [], period: "all", from: "", to: "", depts: [], cats: [], color: "all", result: "all", q: "", doc: "", hour: "", wd: "", day: "", money: false, metric: "hours" };
+const DEFAULT = { tab: "insights", ig: "month", ik: "", lens: "fleet", lv: "", wship: "", gday: "", ships: [], period: "all", from: "", to: "", depts: [], cats: [], color: "all", result: "all", q: "", doc: "", hour: "", wd: "", day: "", money: false, metric: "hours" };
 let S = { ...DEFAULT };
 function readHash() {
   const h = new URLSearchParams(location.hash.slice(1));
@@ -422,6 +462,15 @@ function syncControls() {
   S.depts.forEach((d) => chip(`Dept: <b>${esc(d)}</b>`, { depts: S.depts.filter((x) => x !== d) }));
   S.cats.forEach((c) => chip(`Type: <b>${esc(c)}</b>`, { cats: S.cats.filter((x) => x !== c) }));
   if (S.q) chip(`Name has “${esc(S.q)}”`, { q: "" });
+  const [pa, pb] = periodRange();
+  const nShips = S.ships.length || SHIPS.length;
+  const narrowed = S.ships.length && S.ships.length < SHIPS.length;
+  const dates = S.tab === "insights" ? "period set below" : `${fday(pa)} – ${fday(pb)}`;
+  $("#scope").className = "scope" + (narrowed || chips.length || S.period !== "all" ? " narrow" : "");
+  $("#scope").innerHTML = `<span class="lab">Showing</span> <b>${narrowed ? `${S.ships.join(" + ")} — ${S.ships.length} of ${SHIPS.length} ships` : `all ${SHIPS.length} ships`}</b> · <b>${dates}</b>${chips.length ? ` · ${chips.length} more filter${chips.length > 1 ? "s" : ""}` : ""}${narrowed ? ` <button class="linkbtn" id="allShips">Show all ${SHIPS.length} ships</button>` : ""}`;
+  const as = $("#allShips"); if (as) as.onclick = () => set({ ships: [] });
+  const onIns = S.tab === "insights";
+  $("#fPeriod").hidden = onIns; if (onIns) { $("#fFrom").hidden = $("#fTo").hidden = true; }
   const any = chips.length || S.ships.length || S.period !== "all" || S.color !== "all" || S.result !== "all";
   $("#active").innerHTML = chips.join("") + (any ? `<button class="linkbtn" id="reset">Reset all filters</button>` : "");
   $$("#active .fchip button").forEach((b) => (b.onclick = () => set(JSON.parse(b.dataset.p))));
@@ -444,16 +493,17 @@ function buildDocNames() {
 const docLabel = (key) => docNames.get(key) || key;
 
 // ---------------------------------------------------------------- render
-const TABS = [["overview", "Overview"], ["workload", "Workload"], ["printed", "What's printed"], ["stalls", "Stalls"], ["cancels", "Cancels & waste"], ["jobs", "Jobs"]];
+const TABS = [["insights", "Insights"], ["overview", "Overview"], ["workload", "Working hours"], ["printed", "What's printed"], ["stalls", "Stalls"], ["cancels", "Cancels & waste"], ["jobs", "Jobs"]];
 function render() {
   const main = $("#main");
   const [a, b] = periodRange();
   const jobs = filtered([a, b]);
   main.innerHTML = `<nav class="tabs" role="tablist">${TABS.map(([k, l]) => `<button role="tab" data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}</button>`).join("")}</nav><div class="tabline"></div><div id="tab" class="fade"></div>`;
   $$(".tabs button").forEach((btn) => (btn.onclick = () => set({ tab: btn.dataset.t })));
+  if (S.tab === "insights") return insightsTab({ jobs });
   if (!jobs.length) { $("#tab").innerHTML = `<div class="card empty"><h2>No jobs match these filters</h2><p>${fday(a)} – ${fday(b)}. Widen the dates or remove a filter.</p></div>`; return; }
   const ctx = { jobs, a, b, k: kpis(jobs) };
-  ({ overview, workload, printed, stalls, cancels, jobsTab }[S.tab === "jobs" ? "jobsTab" : S.tab] || overview)(ctx);
+  ({ insightsTab, overview, workload, printed, stalls, cancels, jobsTab }[S.tab === "jobs" ? "jobsTab" : S.tab === "insights" ? "insightsTab" : S.tab] || overview)(ctx);
 }
 
 function metricSeg(id) {
@@ -473,6 +523,97 @@ function prevDelta(curVal, fn) {
   return `<div class="d">${ch > 0 ? "▲" : ch < 0 ? "▼" : "="} ${Math.abs(ch)}% vs previous ${n} days</div>`;
 }
 
+// ---- Insights: one period at a time, any grain, any slice
+const ICON_BY = { clock: "clock", alert: "alert", cal: "cal", people: "people", doc: "doc", drop: "drop" };
+function sliceJobs() {
+  // every non-date filter, all dates: history feeds "typical" and "on record"
+  return ALL.filter(passesNonDate);
+}
+function latestKey(grain) { return periodOf(DAY_MAX, grain); }
+function insightsTab() {
+  const grain = GRAINS.includes(S.ig) ? S.ig : "month";
+  let key = S.ik && periodOf(pRange(S.ik, grain)[0], grain) === S.ik ? S.ik : latestKey(grain);
+  const minKey = periodOf(DAY_MIN, grain), maxKey = latestKey(grain);
+  if (key < minKey) key = minKey; if (key > maxKey) key = maxKey;
+  const base = sliceJobs();
+  const depts = groupBy(base, (j) => j.dept, () => 1).map((x) => x[0]);
+  const cats = groupBy(base, (j) => j.cat, () => 1).map((x) => x[0]);
+  const lens = ["fleet", "ships", "dept", "cat"].includes(S.lens) ? S.lens : "fleet";
+  const lv = lens === "dept" ? (depts.includes(S.lv) ? S.lv : depts[0]) : lens === "cat" ? (cats.includes(S.lv) ? S.lv : cats[0]) : "";
+  const cov = coverage(key, grain, DAY_MIN, DAY_MAX);
+  $("#tab").innerHTML = `
+  <div class="ibar">
+    <div class="seg" id="iGrain">${GRAINS.map((g) => `<button data-g="${g}" class="${g === grain ? "on" : ""}">${g[0].toUpperCase() + g.slice(1)}</button>`).join("")}</div>
+    <div class="inav">
+      <button class="btn" id="iPrev" ${key <= minKey ? "disabled" : ""} aria-label="Previous">‹</button>
+      <div class="per">${periodLabel(key, grain)}</div>
+      <button class="btn" id="iNext" ${key >= maxKey ? "disabled" : ""} aria-label="Next">›</button>
+      <button class="btn" id="iLatest" ${key === maxKey ? "disabled" : ""}>Latest</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <select class="ctl" id="iLens" aria-label="View">
+        <option value="fleet" ${lens === "fleet" ? "selected" : ""}>${S.ships.length === 1 ? esc(S.ships[0]) : "Whole fleet"}</option>
+        ${SHIPS.length > 1 && S.ships.length !== 1 ? `<option value="ships" ${lens === "ships" ? "selected" : ""}>Each ship, side by side</option>` : ""}
+        <option value="dept" ${lens === "dept" ? "selected" : ""}>One department…</option>
+        <option value="cat" ${lens === "cat" ? "selected" : ""}>One document type…</option>
+      </select>
+      ${lens === "dept" || lens === "cat" ? `<select class="ctl" id="iLv">${(lens === "dept" ? depts : cats).map((v) => `<option ${v === lv ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>` : ""}
+    </div>
+  </div>
+  <div class="card panel" style="margin-bottom:14px"><div class="ph"><div><h2>Press time, ${grain} by ${grain}</h2><p>The last 12 ${grain}s for this view. Click a bar to open that ${grain}.${cov.partial ? ` <span class="part">This ${grain} is only partly on file (${cov.days} of ${cov.of} days).</span>` : ""}</p></div></div><div class="chart short" id="chStrip" style="height:180px"></div></div>
+  <div id="icards"></div>`;
+  $("#iGrain").onclick = (e) => { const b = e.target.closest("button"); if (b) set({ ig: b.dataset.g, ik: periodOf(pRange(key, grain)[1] > DAY_MAX ? DAY_MAX : pRange(key, grain)[1], b.dataset.g) }); };
+  $("#iPrev").onclick = () => set({ ik: shiftPeriod(key, grain, -1) });
+  $("#iNext").onclick = () => set({ ik: shiftPeriod(key, grain, 1) });
+  $("#iLatest").onclick = () => set({ ik: "" });
+  $("#iLens").onchange = (e) => set({ lens: e.target.value, lv: "" });
+  if ($("#iLv")) $("#iLv").onchange = (e) => set({ lv: e.target.value });
+
+  const slice = lens === "dept" ? base.filter((j) => j.dept === lv) : lens === "cat" ? base.filter((j) => j.cat === lv) : base;
+  const days = dailyBusy(slice, BASE);
+  // strip
+  const keys = []; for (let i = 11; i >= 0; i--) { const k2 = shiftPeriod(key, grain, -i); if (k2 >= minKey) keys.push(k2); }
+  const per = new Map(); for (const [d, v] of Object.entries(days)) { const k2 = periodOf(d, grain); per.set(k2, (per.get(k2) || 0) + v.busy); }
+  chart("chStrip", {
+    grid: { left: 40, right: 10, top: 10, bottom: 24 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow", shadowStyle: { color: "rgba(255,255,255,.04)" } }, formatter: (ps) => `<b>${periodLabel(keys[ps[0].dataIndex], grain)}</b><br>${hrs((per.get(keys[ps[0].dataIndex]) || 0))} h busy` },
+    xAxis: axis({ type: "category", data: keys.map((k2) => shortLabel(k2, grain)), splitLine: { show: false } }),
+    yAxis: axis({ type: "value", axisLine: { show: false }, axisLabel: { color: C.ink3, fontSize: 10.5, formatter: (v) => `${v}h` } }),
+    series: [{ type: "bar", barMaxWidth: 30, data: keys.map((k2) => ({ value: +((per.get(k2) || 0) / 3600).toFixed(1), itemStyle: { color: k2 === key ? C.brand : C.print, opacity: k2 === key ? 1 : 0.55, borderRadius: [4, 4, 0, 0] } })) }],
+  }, (p) => set({ ik: keys[p.dataIndex] }));
+
+  const [ra, rb] = pRange(key, grain);
+  const clampA = ra < DAY_MIN ? DAY_MIN : ra, clampB = rb > DAY_MAX ? DAY_MAX : rb;
+  const draw = (js, dys) => {
+    const r = buildInsights({ jobs: js, key, grain, bases: BASE, docName: docLabel, dayMin: DAY_MIN, dayMax: DAY_MAX, days: dys });
+    if (r.empty) return `<div class="card empty" style="padding:28px">No jobs logged in this ${grain}.</div>`;
+    return r.cards.map((c, i) => `<button class="icard ${c.tone}" data-c='${esc(JSON.stringify(c.go))}'><span class="ic">${ICON[ICON_BY[c.icon]] || ICON.doc}</span><div><div class="t">${esc(c.title)}</div><div class="x">${c.html}</div><div class="go">Open →</div></div></button>`).join("");
+  };
+  let html;
+  if (lens === "ships") {
+    const ships = SHIPS.filter((s) => !S.ships.length || S.ships.includes(s));
+    html = `<div class="icols">${ships.map((s) => { const js = base.filter((j) => j.ship === s); return `<div class="icol"><h3><span class="dot" style="background:${shipColor(s)}"></span>${esc(s)}</h3>${draw(js, dailyBusy(js, BASE))}</div>`; }).join("")}</div>`;
+  } else {
+    html = `<div class="icards">${draw(slice, days)}</div>`;
+  }
+  $("#icards").innerHTML = html;
+  $$("#icards .icard").forEach((b) => (b.onclick = () => {
+    const go = JSON.parse(b.dataset.c);
+    const patch = { ...go };
+    if (!go.day) Object.assign(patch, { period: "custom", from: clampA, to: clampB });
+    if (lens === "dept" && !go.depts) patch.depts = [lv];
+    if (lens === "cat" && !go.cats) patch.cats = [lv];
+    if (lens === "ships" && !go.ships) patch.ships = [b.closest(".icol").querySelector("h3").textContent.trim()];
+    set(patch);
+  }));
+}
+function shortLabel(k, g) {
+  if (g === "day") return fdayShort(k);
+  if (g === "week") return fdayShort(k);
+  if (g === "month") return MON[+k.slice(5, 7) - 1] + (k.slice(5, 7) === "01" ? " " + k.slice(2, 4) : "");
+  return k;
+}
+
 // ---- Overview
 function overview({ jobs, a, b, k }) {
   const days = daysBetween(a, b);
@@ -487,7 +628,7 @@ function overview({ jobs, a, b, k }) {
       <div class="splitbar"><i style="flex:${k.b.printS}"></i><i style="flex:${Math.max(0, k.b.stallS)}"></i></div></div>
     <div class="card kpi"><div class="v">${perDay >= 2 ? `${n0(perDay)}<small>h</small>` : `${Math.round(perDay * 60)}<small>min</small>`}</div><div class="l">busy per press, per working day</div><div class="d">${n0(k.activeDays)} days with printing</div></div>
     <div class="card kpi"><div class="v">${n0(k.done)}</div><div class="l">Jobs printed</div>${prevDelta(k.done, (p) => p.done)}</div>
-    <div class="card kpi"><div class="v">${n0(k.sheets)}</div><div class="l">Sheets fed</div>${prevDelta(k.sheets, (p) => p.sheets)}</div>
+    <div class="card kpi"><div class="v">${n0(k.sheets)}</div><div class="l">Sheets fed</div>${prevDelta(k.sheets, (p) => p.sheets)}${paperLine(jobs)}</div>
     ${S.money
       ? `<div class="card kpi" style="--kc:${C.brand}"><div class="v">${usd(k.value)}</div><div class="l">Billed value · ${n0(k.clicks)} clicks</div><div class="d">${pct(k.color, k.clicks)}% colour clicks</div></div>`
       : `<div class="card kpi"><div class="v">${pct(k.color, k.clicks)}<small>%</small></div><div class="l">of clicks are colour</div><div class="d">${n0(k.color)} colour · ${n0(k.black)} black</div></div>`}
@@ -496,7 +637,7 @@ function overview({ jobs, a, b, k }) {
     <div class="card panel c8"><div class="ph"><div><h2>Press time, ${days <= 62 ? "day by day" : days <= 400 ? "week by week" : "month by month"}</h2><p>Hours the press was busy — printing at normal speed, and stalled beyond it. Click a bar to open that day.</p></div>
       <div class="legend"><span><i class="dot" style="background:${C.print}"></i>Printing</span><span><i class="dot" style="background:${C.stall}"></i>Stalled</span></div></div>
       <div class="chart" id="chDaily" style="height:430px"></div></div>
-    <div class="card panel c4"><div class="ph"><div><h2>What stands out</h2><p>Facts from the filtered jobs. Tap one to open it.</p></div></div><div class="insights" id="ins"></div></div>
+    <div class="card panel c4"><div class="ph"><div><h2>What stands out</h2><p>For ${S.ships.length && S.ships.length < SHIPS.length ? esc(S.ships.join(" + ")) : `all ${SHIPS.length} ships`}, ${fday(a)} – ${fday(b)}. Tap one to open it. <a href="#" id="toIns">Month by month →</a></p></div></div><div class="insights" id="ins"></div></div>
     <div class="card panel c6"><div class="ph"><div><h2>By department</h2><p>Press account that sent the job. Click to filter.</p></div>${metricSeg("mDept")}</div><div class="chart tall" id="chDept"></div></div>
     <div class="card panel c6"><div class="ph"><div><h2>By document type</h2><p>What was printed, read from the file name. Click to filter.</p></div>${metricSeg("mCat")}</div><div class="chart tall" id="chCat"></div></div>
     ${SHIPS.length > 1 && (!S.ships.length || S.ships.length > 1) ? `<div class="card panel c12"><div class="ph"><div><h2>Ships side by side</h2><p>${metric().label} per ${daysBetween(a, b) <= 62 ? "week" : "month"}. A period cut by the date range is marked "part".</p></div>${metricSeg("mShip")}</div><div class="chart short" id="chShip"></div></div>` : ""}
@@ -527,6 +668,14 @@ function overview({ jobs, a, b, k }) {
   hbar("chCat", groupBy(jobs, (j) => j.cat, metric().get), (name) => set({ cats: [name] }));
   if ($("#chShip")) shipWeekly("chShip", jobs, a, b);
   insights(jobs, k);
+  $("#toIns").onclick = (e) => { e.preventDefault(); set({ tab: "insights" }); };
+}
+
+// Boxes + pallets, with the assumption named (no paper size in the log).
+function paperLine(jobs) {
+  const p = paper(jobs);
+  const bx = (v) => (v > 0 && v < 1 ? "<1" : n0(v));
+  return `<div class="d" title="Paper size is not in the press log. Assumed: fold-tray (booklet) jobs on 11×17 at ${n0(PAPER.tabloidPerBox)} a box; everything else 8.5×11 at ${n0(PAPER.letterPerBox)} a box; ${PAPER.boxesPerPallet} boxes a pallet. Counts paper on cancelled jobs too.">≈ <b style="color:#fff">${bx(p.boxes)} boxes</b> · ${p.pallets >= 1 ? n0(p.pallets) : "<1"} pallet${p.pallets >= 1.5 ? "s" : ""}<br>${bx(p.letterBoxes)} × 8.5×11 · ${bx(p.tabloidBoxes)} × 11×17 <span class="part">assumed ⓘ</span></div>`;
 }
 
 function hbar(id, rows, onPick, max = 14) {
@@ -593,77 +742,150 @@ function insights(jobs, k) {
   $$("#ins .ins").forEach((el) => (el.onclick = () => out[+el.dataset.i].go()));
 }
 
-// ---- Workload
+// ---- Working hours: how each press's day actually runs
+// end of day reads 24:00, never a second 00:00
+const clock = (sec) => { if (sec == null) return "—"; const m = Math.round(sec / 60); return `${String(Math.min(24, Math.floor(m / 60))).padStart(2, "0")}:${String(m >= 1440 ? 0 : m % 60).padStart(2, "0")}`; };
+const med = (arr) => quantile(arr.slice().sort((x, y) => x - y), 0.5);
 function workload({ jobs, a, b, k }) {
   const ships = [...new Set(jobs.map((j) => j.ship))].sort();
-  // weekday counts in range, for per-day averages
-  const wdCount = new Array(7).fill(0); for (let d = a; d <= b; d = addDays(d, 1)) wdCount[(new Date(d + "T00:00:00Z").getUTCDay() + 6) % 7]++;
+  const prof = {}; for (const s of ships) prof[s] = dayProfiles(jobs.filter((j) => j.ship === s), BASE[s]);
+  const pdays = []; for (const s of ships) for (const [d, v] of Object.entries(prof[s])) if (d >= a && d <= b) pdays.push({ s, d, ...v });
   const nDays = daysBetween(a, b);
-  // typical day per ship
-  const perShip = ships.map((s) => {
-    const js = jobs.filter((j) => j.ship === s && j.runS != null && j.runS > 0);
-    const byDay = {};
-    for (const j of js) { const d = (byDay[j.day] ||= { first: Infinity, last: -Infinity, n: 0 }); const st = new Date(j.startMs); const en = new Date(j.endMs); d.first = Math.min(d.first, st.getUTCHours() * 60 + st.getUTCMinutes() + (st.toISOString().slice(0, 10) < j.day ? -1440 : 0)); d.last = Math.max(d.last, en.getUTCHours() * 60 + en.getUTCMinutes()); d.n++; }
-    const busyByDay = Object.entries(k.b.days).map(([d, v]) => [d, v.ships[s] || 0]).filter(([, v]) => v > 0);
-    const sorted = busyByDay.map(([, v]) => v).sort((x, y) => x - y);
-    const firsts = Object.values(byDay).map((d) => Math.max(0, d.first)).sort((x, y) => x - y);
-    const lasts = Object.values(byDay).map((d) => d.last).sort((x, y) => x - y);
-    const top = busyByDay.sort((x, y) => y[1] - x[1])[0];
-    return { s, days: sorted.length, med: quantile(sorted, 0.5), p90: quantile(sorted, 0.9), first: quantile(firsts, 0.5), last: quantile(lasts, 0.5), top };
-  });
-  const tm = (m) => (m == null ? "—" : `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(Math.round(m % 60)).padStart(2, "0")}`);
+  const wship = ships.includes(S.wship) ? S.wship : ships[0];
+  const allDays = [...new Set(pdays.map((x) => x.d))].sort();
+  const gday = allDays.includes(S.gday) ? S.gday : allDays[allDays.length - 1];
+  const top = pdays.slice().sort((x, y) => y.busy - x.busy)[0];
+  const sumBusy = pdays.reduce((t, x) => t + x.busy, 0), sumWin = pdays.reduce((t, x) => t + x.window, 0);
+  const perShipDays = ships.map((s) => pdays.filter((x) => x.s === s).length);
+  const noBase = ships.filter((s) => !BASE[s]);
+  const wdCount = new Array(7).fill(0); for (let d = a; d <= b; d = addDays(d, 1)) wdCount[(new Date(d + "T00:00:00Z").getUTCDay() + 6) % 7]++;
+
   $("#tab").innerHTML = `
-  <div class="grid">
-    <div class="card panel c12"><div class="ph"><div><h2>When the press is busy</h2><p>Average minutes busy in each hour, per press, over ${n0(nDays)} days. Darker = busier. Click a cell to see the jobs that started in that hour.</p></div></div><div class="chart" id="chHeat" style="height:300px"></div></div>
-    <div class="card panel c7"><div class="ph"><div><h2>A typical day, hour by hour</h2><p>Average busy minutes in each hour of the day.</p></div>
-      <div class="legend">${ships.map((s) => `<span><i class="dot" style="background:${shipColor(s)}"></i>${esc(s)}</span>`).join("")}</div></div><div class="chart" id="chHour"></div></div>
-    <div class="card panel c5"><div class="ph"><div><h2>Each press's day</h2><p>Typical (median) values for days with printing.</p></div></div>
-      <div class="tbl-wrap"><table class="t"><thead><tr><th>Ship</th><th class="num">Busy / day</th><th class="num">Busiest 10% of days</th><th class="num">First job</th><th class="num">Last job</th></tr></thead><tbody>
-      ${perShip.map((r) => `<tr><td><span class="dot" style="background:${shipColor(r.s)}"></span> ${esc(r.s)}</td><td class="num"><b style="color:#fff">${dur(r.med)}</b></td><td class="num">${dur(r.p90)}</td><td class="num">${tm(r.first)}</td><td class="num">${tm(r.last)}</td></tr>`).join("")}
+  <div class="kpis">
+    <div class="card kpi" style="--kc:${C.print}"><div class="v">${dur(med(pdays.map((x) => x.busy))).replace(/ (h|min)/g, "<small>$1</small>")}</div><div class="l">worked per press, per day</div><div class="d">typical day with printing</div></div>
+    <div class="card kpi"><div class="v">${dur(med(pdays.map((x) => x.window))).replace(/ (h|min)/g, "<small>$1</small>")}</div><div class="l">working window</div><div class="d">first job start → last job end</div></div>
+    <div class="card kpi"><div class="v">${pct(sumBusy, sumWin)}<small>%</small></div><div class="l">of the window actually printing</div><div class="d">the rest is idle between jobs</div></div>
+    <div class="card kpi"><div class="v">${clock(med(pdays.map((x) => x.first)))}<small>→</small>${clock(med(pdays.map((x) => x.last)))}</div><div class="l">typical start → finish</div><div class="d">ship's clock</div></div>
+    <div class="card kpi"><div class="v">${Math.round(perShipDays.reduce((t, x) => t + x, 0) / Math.max(1, ships.length))}<small>/ ${nDays}</small></div><div class="l">days worked, per press</div><div class="d">${ships.length > 1 ? ships.map((s, i) => `${esc(s)} ${perShipDays[i]}`).join(" · ") : "days with at least one job"}</div></div>
+    <div class="card kpi" style="--kc:${C.stall}"><div class="v">${noBase.length ? "—" : dur(med(pdays.map((x) => x.stall))).replace(/ (h|min|s)$/g, "<small>$1</small>")}</div><div class="l">stalled, per press per day</div><div class="d">${top ? `longest day: ${dur(top.busy)} · ${esc(top.s)} ${fdayShort(top.d)}` : ""}</div></div>
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="card panel c12"><div class="ph"><div><h2>A day on the presses</h2><p>Every job on ${gday ? `<b style="color:#fff">${WD[(new Date(gday + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(gday)}</b>` : "—"}, hour by hour. Blue is printing, orange is stalled; gaps are the press standing idle. Hover a block for the job.</p></div>
+      <div class="inav"><button class="btn" id="gPrev" aria-label="Previous day">‹</button><button class="btn" id="gBusy">Busiest day</button><button class="btn" id="gNext" aria-label="Next day">›</button></div></div>
+      <div class="chart" id="chGantt" style="height:${90 + 46 * Math.max(1, ships.length)}px"></div>
+      <div id="gSum" class="legend" style="margin-top:6px"></div></div>
+
+    <div class="card panel c12"><div class="ph"><div><h2>Every day at a glance</h2><p>One column per day, midnight at the top. Each coloured band is time the press was working — a shift that moves, a late night, a day off all show as a pattern. Click a day to open it above.</p></div>
+      ${ships.length > 1 ? `<div class="seg" id="wShip">${ships.map((s) => `<button data-s="${esc(s)}" class="${s === wship ? "on" : ""}"><span class="dot" style="background:${shipColor(s)}"></span>${esc(s)}</button>`).join("")}</div>` : ""}</div>
+      <div class="chart" id="chActo" style="height:360px"></div></div>
+
+    <div class="card panel c8"><div class="ph"><div><h2>Hours worked, day by day — ${esc(wship)}</h2><p>Busy hours each day, printing and stalled. The line is ${esc(wship)}'s typical day.</p></div>
+      <div class="legend"><span><i class="dot" style="background:${C.print}"></i>Printing</span><span><i class="dot" style="background:${C.stall}"></i>Stalled</span></div></div>
+      <div class="chart" id="chDayHrs"></div></div>
+    <div class="card panel c4"><div class="ph"><div><h2>How long a working day is</h2><p>Days by hours worked, ${esc(wship)}.</p></div></div><div class="chart" id="chHist"></div></div>
+
+    <div class="card panel c12"><div class="ph"><div><h2>Each press's week</h2><p>Typical (median) day for each weekday, days with printing only.</p></div></div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>Ship</th>${WD.map((w) => `<th class="num">${w}</th>`).join("")}<th class="num">Start</th><th class="num">Finish</th><th class="num">Busiest 10%</th></tr></thead><tbody>
+      ${ships.map((s) => { const ds = pdays.filter((x) => x.s === s); return `<tr><td><span class="dot" style="background:${shipColor(s)}"></span> ${esc(s)}</td>${WD.map((_, wd) => { const v = ds.filter((x) => (new Date(x.d + "T00:00:00Z").getUTCDay() + 6) % 7 === wd); return `<td class="num">${v.length ? `<b style="color:#fff">${dur(med(v.map((x) => x.busy)))}</b><div class="muted" style="font-size:11px">${v.length}/${wdCount[wd]} days</div>` : "—"}</td>`; }).join("")}<td class="num">${clock(med(ds.map((x) => x.first)))}</td><td class="num">${clock(med(ds.map((x) => x.last)))}</td><td class="num">${dur(quantile(ds.map((x) => x.busy).sort((x, y) => x - y), 0.9))}</td></tr>`; }).join("")}
       </tbody></table></div>
-      <div class="method">"Busy" is machine time, from the press's own start and end times. The log does not record who stood at the press, so these are not labour hours.</div></div>
-    <div class="card panel c12"><div class="ph"><div><h2>Busiest days</h2><p>Click a day to filter to it.</p></div></div>
+      <div class="method">All hours are <b>machine time</b> from the press's own start and end times, on the ship's clock. The log does not record who stood at the press, so these are not labour hours. A job across midnight counts on both days.</div></div>
+
+    <div class="card panel c12"><div class="ph"><div><h2>When the press is busy</h2><p>Average minutes busy in each hour, per press, over ${n0(nDays)} days. Darker = busier. Click a cell to see the jobs that started in that hour.</p></div></div><div class="chart" id="chHeat" style="height:300px"></div></div>
+    <div class="card panel c12"><div class="ph"><div><h2>Busiest days</h2><p>Click a day to open it on the timeline.</p></div></div>
       <div class="tbl-wrap" style="max-height:420px"><table class="t" id="tDays"></table></div></div>
   </div>`;
 
-  // heatmap: avg busy minutes per (weekday,hour) per press
+  // ---- day timeline (Gantt)
+  const di = allDays.indexOf(gday);
+  $("#gPrev").disabled = di <= 0; $("#gNext").disabled = di < 0 || di >= allDays.length - 1;
+  $("#gPrev").onclick = () => set({ gday: allDays[di - 1] });
+  $("#gNext").onclick = () => set({ gday: allDays[di + 1] });
+  $("#gBusy").onclick = () => set({ gday: top?.d });
+  const d0 = Date.parse(gday + "T00:00:00Z");
+  const blocks = [];
+  for (const j of jobs) {
+    if (j.startMs == null || j.runS <= 0) continue;
+    const st = j.startMs, en = j.endMs;
+    if (en <= d0 || st >= d0 + 86400000) continue;
+    const row = ships.indexOf(j.ship); if (row < 0) continue;
+    const pEnd = st + (j.printS || 0) * 1000;
+    const seg = (x, y, kind) => { const A = Math.max(x, d0), B = Math.min(y, d0 + 86400000); if (B > A) blocks.push({ value: [row, (A - d0) / 3600000, (B - d0) / 3600000], kind, j }); };
+    seg(st, pEnd, "print"); if (j.stallS > 0) seg(pEnd, en, "stall");
+  }
+  const H = 22;
+  chart("chGantt", {
+    grid: { left: 80, right: 16, top: 10, bottom: 30 },
+    tooltip: { formatter: (p) => { const j = p.data.j; return `<b>${esc(j.file || "(no file name)")}</b><br>${esc(j.ship)} · ${esc(j.dept)} · ${esc(j.cat)}<br>${new Date(j.startMs).toISOString().slice(11, 16)} → ${j.endTs.slice(11, 16)} · ${dur(j.runS)} · ${n0(j.feed)} sheets${j.stallS >= STALL_JOB_S ? `<br><span style="color:${C.stall}">stalled ${dur(j.stallS)} past normal (${dur(j.expS)})</span>` : ""}`; } },
+    xAxis: axis({ type: "value", min: 0, max: 24, interval: 2, axisLabel: { color: C.ink3, fontSize: 11, formatter: (v) => `${String(v).padStart(2, "0")}:00` } }),
+    yAxis: axis({ type: "category", data: ships, inverse: true, axisLine: { show: false }, splitLine: { show: false }, axisLabel: { color: C.ink2, fontSize: 12.5 } }),
+    series: [{ type: "custom", progressive: 0, data: blocks, encode: { x: [1, 2], y: 0 },
+      renderItem: (params, api) => { const s0 = api.coord([api.value(1), api.value(0)]), s1 = api.coord([api.value(2), api.value(0)]); const kind = blocks[params.dataIndex].kind;
+        return { type: "rect", shape: { x: s0[0], y: s0[1] - H / 2, width: Math.max(1.5, s1[0] - s0[0]), height: H, r: 3 }, style: { fill: kind === "print" ? C.print : C.stall, stroke: css("--card"), lineWidth: 1 } }; } }],
+  });
+  $("#gSum").innerHTML = ships.map((s) => { const p = prof[s][gday]; return `<span><i class="dot" style="background:${shipColor(s)}"></i><b style="color:#fff">${esc(s)}</b>&nbsp;${p ? `${clock(p.first)}→${clock(p.last)} · worked ${dur(p.busy)} of a ${dur(p.window)} window${p.stall >= 60 && BASE[s] ? ` · ${dur(p.stall)} stalled` : ""}` : "no jobs"}</span>`; }).join("");
+  const ws = $("#wShip"); if (ws) ws.onclick = (e) => { const bt = e.target.closest("button"); if (bt) set({ wship: bt.dataset.s }); };
+
+  // ---- actogram: one column per day, 00 at top
+  const days = []; for (let d = a; d <= b; d = addDays(d, 1)) days.push(d);
+  const P = prof[wship] || {};
+  const bands = []; for (const [i, d] of days.entries()) { const p = P[d]; if (p) for (const [x, y] of p.iv) bands.push([i, x / 3600, y / 3600]); }
+  chart("chActo", {
+    grid: { left: 46, right: 12, top: 8, bottom: 30 },
+    tooltip: { formatter: (p) => { const d = days[p.value[0]], q = P[d]; return `<b>${WD[(new Date(d + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(d)}</b><br>${clock(q.first)} → ${clock(q.last)}<br>worked ${dur(q.busy)}${q.stall >= 60 && BASE[wship] ? `, ${dur(q.stall)} stalled` : ""}`; } },
+    xAxis: axis({ type: "category", data: days.map(fdayShort), splitLine: { show: false }, axisLabel: { color: C.ink3, fontSize: 10.5 } }),
+    yAxis: axis({ type: "value", min: 0, max: 24, interval: 3, inverse: true, axisLine: { show: false }, axisLabel: { color: C.ink3, fontSize: 10.5, formatter: (v) => `${String(v).padStart(2, "0")}:00` } }),
+    series: [{ type: "custom", progressive: 0, data: bands, encode: { x: 0, y: [1, 2] },
+      renderItem: (params, api) => { const w = Math.max(1, api.size([1, 0])[0] * 0.78); const p0 = api.coord([api.value(0), api.value(1)]), p1 = api.coord([api.value(0), api.value(2)]);
+        return { type: "rect", shape: { x: p0[0] - w / 2, y: p0[1], width: w, height: Math.max(1, p1[1] - p0[1]) }, style: { fill: shipColor(wship) } }; } }],
+  }, (p) => set({ gday: days[p.value[0]] }));
+
+  // ---- hours worked per day, and the spread
+  const dh = days.map((d) => P[d] || null);
+  const typical = med(Object.entries(P).filter(([d]) => d >= a && d <= b).map(([, v]) => v.busy)) || 0;
+  chart("chDayHrs", {
+    grid: { left: 40, right: 12, top: 14, bottom: 30 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow", shadowStyle: { color: "rgba(255,255,255,.04)" } }, formatter: (ps) => { const i = ps[0].dataIndex, q = dh[i]; return `<b>${fday(days[i])}</b><br>${q ? `worked ${dur(q.busy)} · ${clock(q.first)}→${clock(q.last)}` : "no jobs"}`; } },
+    xAxis: axis({ type: "category", data: days.map(fdayShort), splitLine: { show: false } }),
+    yAxis: axis({ type: "value", name: "h", nameTextStyle: { color: C.ink3 }, axisLine: { show: false } }),
+    series: [
+      { type: "bar", stack: "h", barMaxWidth: 14, itemStyle: { color: C.print }, data: dh.map((q) => (q ? +(q.print / 3600).toFixed(2) : 0)),
+        markLine: { symbol: "none", silent: true, lineStyle: { color: C.ink2, type: "solid", width: 1 }, label: { color: C.ink2, formatter: `typical ${dur(typical)}`, position: "insideEndTop" }, data: [{ yAxis: +(typical / 3600).toFixed(2) }] } },
+      { type: "bar", stack: "h", barMaxWidth: 14, itemStyle: { color: C.stall, borderRadius: [3, 3, 0, 0] }, data: dh.map((q) => (q && BASE[wship] ? +(q.stall / 3600).toFixed(2) : 0)) },
+    ],
+  }, (p) => set({ gday: days[p.dataIndex] }));
+  const bins = ["<1 h", "1–2", "2–4", "4–6", "6–8", "8–12", "12+ h"], edges = [1, 2, 4, 6, 8, 12, Infinity];
+  const counts = new Array(bins.length).fill(0);
+  for (const q of Object.entries(P).filter(([d]) => d >= a && d <= b).map(([, v]) => v.busy / 3600)) counts[edges.findIndex((e) => q < e)]++;
+  const idle = days.length - Object.keys(P).filter((d) => d >= a && d <= b).length;
+  chart("chHist", {
+    grid: { left: 36, right: 10, top: 14, bottom: 30 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow", shadowStyle: { color: "rgba(255,255,255,.04)" } }, formatter: (ps) => `<b>${ps[0].name}</b><br>${ps[0].value} days` },
+    xAxis: axis({ type: "category", data: ["none", ...bins], splitLine: { show: false } }),
+    yAxis: axis({ type: "value", axisLine: { show: false }, minInterval: 1 }),
+    series: [{ type: "bar", barMaxWidth: 26, data: [{ value: idle, itemStyle: { color: C.line2 } }, ...counts.map((v) => ({ value: v, itemStyle: { color: C.print } }))], itemStyle: { borderRadius: [4, 4, 0, 0] } }],
+  });
+
+  // ---- heatmap (unchanged meaning): avg busy minutes per (weekday,hour) per press
   const nPress = Math.max(1, ships.length);
   const data = []; let vmax = 0;
-  for (let wd = 0; wd < 7; wd++) for (let h = 0; h < 24; h++) {
-    const v = (k.b.heat[`${wd}|${h}`] || 0) / 60 / Math.max(1, wdCount[wd]) / nPress; vmax = Math.max(vmax, v); data.push([h, wd, +v.toFixed(1)]);
-  }
+  for (let wd = 0; wd < 7; wd++) for (let h = 0; h < 24; h++) { const v = (k.b.heat[`${wd}|${h}`] || 0) / 60 / Math.max(1, wdCount[wd]) / nPress; vmax = Math.max(vmax, v); data.push([h, wd, +v.toFixed(1)]); }
   chart("chHeat", {
     grid: { left: 44, right: 16, top: 6, bottom: 56 },
     tooltip: { formatter: (p) => `<b>${WD[p.value[1]]} ${hh(p.value[0])}–${hh((p.value[0] + 1) % 24)}</b><br>${Math.round(p.value[2])} min busy on average` },
-    xAxis: { type: "category", data: [...Array(24).keys()].map((h) => String(h).padStart(2, "0")), splitArea: { show: false }, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: C.ink3, fontSize: 11 } },
+    xAxis: { type: "category", data: [...Array(24).keys()].map((h) => String(h).padStart(2, "0")), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: C.ink3, fontSize: 11 } },
     yAxis: { type: "category", data: WD, inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: C.ink2, fontSize: 11.5 } },
-    visualMap: { min: 0, max: Math.max(1, Math.ceil(vmax)), calculable: false, orient: "horizontal", left: "center", bottom: 4, itemHeight: 180, itemWidth: 10, text: [`${Math.ceil(vmax)} min`, "0"], textStyle: { color: C.ink3, fontSize: 11 }, inRange: { color: RAMP } },
-    series: [{ type: "heatmap", data, itemStyle: { borderColor: css("--card"), borderWidth: 2, borderRadius: 4 }, emphasis: { itemStyle: { borderColor: "#fff", borderWidth: 1 } } }],
+    visualMap: { min: 0, max: Math.max(1, Math.ceil(vmax)), orient: "horizontal", left: "center", bottom: 4, itemHeight: 180, itemWidth: 10, text: [`${Math.ceil(vmax)} min`, "0"], textStyle: { color: C.ink3, fontSize: 11 }, inRange: { color: RAMP } },
+    series: [{ type: "heatmap", data, itemStyle: { borderColor: css("--card"), borderWidth: 2, borderRadius: 4 } }],
   }, (p) => set({ wd: String(p.value[1]), hour: String(p.value[0]), tab: "jobs" }));
 
-  chart("chHour", {
-    grid: { left: 40, right: 14, top: 14, bottom: 28 },
-    tooltip: { trigger: "axis", valueFormatter: (v) => `${Math.round(v)} min` },
-    xAxis: axis({ type: "category", data: [...Array(24).keys()].map(hh), boundaryGap: false, splitLine: { show: false } }),
-    yAxis: axis({ type: "value", name: "min", nameTextStyle: { color: C.ink3 }, max: 60, axisLine: { show: false } }),
-    series: ships.map((s) => ({ name: s, type: "line", smooth: 0.3, showSymbol: false, lineStyle: { width: 2, color: shipColor(s) }, itemStyle: { color: shipColor(s) },
-      areaStyle: ships.length === 1 ? { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: shipColor(s) + "55" }, { offset: 1, color: shipColor(s) + "00" }]) } : undefined,
-      data: (k.b.hourShip[s] || new Array(24).fill(0)).map((v) => +(v / 60 / nDays).toFixed(1)) })),
-  });
-
-  // busiest days
-  const rows = [];
-  for (const [d, v] of Object.entries(k.b.days)) for (const [s, sec] of Object.entries(v.ships)) rows.push({ d, s, sec, ...v.stall && { stall: v.stall[s] || 0 } });
-  rows.sort((x, y) => y.sec - x.sec);
-  const top = rows.slice(0, 40).map((r) => {
-    const js = jobs.filter((j) => j.day === r.d && j.ship === r.s);
-    const main = groupBy(js, (j) => j.cat, (j) => j.runS || 0)[0];
-    return { ...r, n: js.length, sheets: js.reduce((a2, j) => a2 + (j.result === "Complete" ? j.feed : 0), 0), main: main?.[0] };
-  });
-  const maxS = top[0]?.sec || 1;
-  $("#tDays").innerHTML = `<thead><tr><th>Day</th><th>Ship</th><th class="num">Busy</th><th></th><th class="num">of it stalled</th><th class="num">Jobs</th><th class="num">Sheets</th><th>Most time went to</th></tr></thead><tbody>${top.map((r) => `
-    <tr class="click" data-d="${r.d}" data-s="${esc(r.s)}"><td>${WD[(new Date(r.d + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(r.d)}</td><td><span class="dot" style="background:${shipColor(r.s)}"></span> ${esc(r.s)}</td><td class="num"><b style="color:#fff">${dur(r.sec)}</b></td><td style="width:16%"><div class="meter"><i style="width:${(100 * r.sec) / maxS}%"></i></div></td><td class="num">${r.stall >= 60 ? `<span class="pill stall">${dur(r.stall)}</span>` : "—"}</td><td class="num">${n0(r.n)}</td><td class="num">${n0(r.sheets)}</td><td>${esc(r.main || "—")}</td></tr>`).join("")}</tbody>`;
-  $$("#tDays tr.click").forEach((tr) => (tr.onclick = () => set({ day: tr.dataset.d, ships: [tr.dataset.s], tab: "jobs" })));
+  // ---- busiest days
+  const topDays = pdays.slice().sort((x, y) => y.busy - x.busy).slice(0, 40);
+  const maxS = topDays[0]?.busy || 1;
+  $("#tDays").innerHTML = `<thead><tr><th>Day</th><th>Ship</th><th class="num">Worked</th><th></th><th class="num">of it stalled</th><th class="num">Start → finish</th><th class="num">Jobs</th><th>Most time went to</th></tr></thead><tbody>${topDays.map((r) => {
+    const js = jobs.filter((j) => j.day === r.d && j.ship === r.s); const main = groupBy(js, (j) => j.cat, (j) => j.runS || 0)[0];
+    return `<tr class="click" data-d="${r.d}"><td>${WD[(new Date(r.d + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(r.d)}</td><td><span class="dot" style="background:${shipColor(r.s)}"></span> ${esc(r.s)}</td><td class="num"><b style="color:#fff">${dur(r.busy)}</b></td><td style="width:14%"><div class="meter"><i style="width:${(100 * r.busy) / maxS}%"></i></div></td><td class="num">${r.stall >= 60 && BASE[r.s] ? `<span class="pill stall">${dur(r.stall)}</span>` : "—"}</td><td class="num">${clock(r.first)} → ${clock(r.last)}</td><td class="num">${n0(js.length)}</td><td>${esc(main?.[0] || "—")}</td></tr>`; }).join("")}</tbody>`;
+  $$("#tDays tr.click").forEach((tr) => (tr.onclick = () => { set({ gday: tr.dataset.d }); scrollTo({ top: 0, behavior: "smooth" }); }));
 }
 
 // ---- What's printed
@@ -854,6 +1076,23 @@ function jobsTab({ jobs }) {
   };
 }
 
+// ---------------------------------------------------------------- night watch status
+async function nightWatch() {
+  let d; try { d = await fetch("api/watch").then((r) => r.json()); } catch { return; }
+  const run = d.latest; const btn = $("#watchBtn");
+  if (!run) return;
+  const warn = run.checks.filter((c) => c.status === "warn").length, fail = run.checks.filter((c) => c.status === "fail").length;
+  const when = new Date(run.ran_at); const ago = Math.round((Date.now() - when) / 3600000);
+  btn.hidden = false; btn.className = "watchbtn " + run.status;
+  btn.innerHTML = `<i></i>Night watch: ${fail ? `${fail} problem${fail > 1 ? "s" : ""}` : warn ? `${warn} to look at` : "all clear"} · ${ago < 1 ? "just now" : ago < 48 ? `${ago} h ago` : fday(run.ran_at.slice(0, 10))}`;
+  const order = { fail: 0, warn: 1, info: 2, ok: 3 };
+  $("#watchWhen").textContent = `Last run ${run.ran_at.slice(0, 16).replace("T", " ")} UTC (${run.trigger}). Runs every night at 06:15 UTC; problems and new findings are emailed.`;
+  $("#watchList").innerHTML = run.checks.slice().sort((a, b) => order[a.status] - order[b.status]).map((c) => `<div class="wrow"><span class="st ${c.status}">${c.status.toUpperCase()}</span><div><b>${esc(c.title)}</b>${c.detail ? `<div>${esc(c.detail)}</div>` : ""}</div></div>`).join("");
+  btn.onclick = () => ($("#watchModal").hidden = false);
+  $("#watchClose").onclick = () => ($("#watchModal").hidden = true);
+  $("#watchModal").onclick = (e) => { if (e.target.id === "watchModal") $("#watchModal").hidden = true; };
+}
+
 // ---------------------------------------------------------------- boot
 (async () => {
   readHash();
@@ -864,6 +1103,7 @@ function jobsTab({ jobs }) {
   $("#filters").hidden = false;
   $("#foot").textContent = `cims-print · $ at ${CPC.label} [${CPC.source}]`;
   buildControls(); syncControls(); render();
+  nightWatch();
   addEventListener("hashchange", () => { readHash(); syncControls(); render(); });
 })();
 </script>

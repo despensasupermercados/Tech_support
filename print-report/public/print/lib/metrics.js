@@ -135,3 +135,53 @@ export function dur(s) {
   const h = Math.floor(m / 60);
   return `${h} h ${String(m % 60).padStart(2, "0")} min`;
 }
+
+// ---- the press's working day ----------------------------------------------
+// One ship's jobs → per calendar day (ship's clock):
+//   first  — seconds after midnight the first job started (clipped to the day)
+//   last   — seconds after midnight the last job ended   (clipped to the day)
+//   window — last − first: the span the press was in use that day
+//   busy   — seconds a job was on the press (overlaps counted once)
+//   print  — seconds printing at normal speed; busy − print = stalled
+//   idle   — window − busy: gaps between jobs inside the working window
+//   iv     — the busy intervals, [fromS, toS] within the day, for the timeline
+// A job across midnight counts on both days, each for its own part.
+export function dayProfiles(jobs, base) {
+  const out = {};
+  const clip = (intervals, cb) => {
+    for (const [a, b] of intervals) {
+      let t = a;
+      while (t < b) {
+        const d0 = Math.floor(t / 86400000) * 86400000;
+        const next = Math.min(b, d0 + 86400000);
+        cb(new Date(d0).toISOString().slice(0, 10), (t - d0) / 1000, (next - d0) / 1000);
+        t = next;
+      }
+    }
+  };
+  clip(busyIntervals(jobs), (day, a, b) => {
+    const d = (out[day] ||= { first: a, last: b, busy: 0, print: 0, iv: [] });
+    d.first = Math.min(d.first, a); d.last = Math.max(d.last, b); d.busy += b - a; d.iv.push([a, b]);
+  });
+  clip(printIntervals(jobs, base), (day, a, b) => { if (out[day]) out[day].print += b - a; });
+  for (const d of Object.values(out)) { d.window = d.last - d.first; d.idle = d.window - d.busy; d.stall = d.busy - d.print; }
+  return out;
+}
+
+// ---- paper ----------------------------------------------------------------
+// Boxes and pallets from sheets fed. Counts EVERY sheet fed, including on jobs
+// later cancelled — that paper was used.
+//
+// THE PRESS LOG HAS NO PAPER SIZE. The size is taken from the output tray:
+// "FS Fold" is the booklet finisher (Shorex, sales and Voyager booklets), run
+// on 11×17 and folded; every other tray is 8.5×11. That rule is an assumption
+// Miguel set out to confirm (2026-09-23) — every screen that shows boxes says
+// so. Change TABLOID_TRAYS here and nowhere else.
+export const PAPER = { letterPerBox: 5000, tabloidPerBox: 2500, boxesPerPallet: 40, TABLOID_TRAYS: ["FS Fold"] };
+export function paper(jobs) {
+  let letter = 0, tabloid = 0;
+  for (const j of jobs) { if (PAPER.TABLOID_TRAYS.includes(j.tray)) tabloid += j.feed || 0; else letter += j.feed || 0; }
+  const letterBoxes = letter / PAPER.letterPerBox, tabloidBoxes = tabloid / PAPER.tabloidPerBox;
+  const boxes = letterBoxes + tabloidBoxes;
+  return { letter, tabloid, letterBoxes, tabloidBoxes, boxes, pallets: boxes / PAPER.boxesPerPallet };
+}
