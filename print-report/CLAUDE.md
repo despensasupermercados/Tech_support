@@ -42,6 +42,13 @@ DB=/tmp/print.db npm run dev   # http://localhost:8788/print/
    from its completed jobs). Busy = printing + stalled exactly; overlaps count once.
 6. **The night watch** (06:15 UTC) emails fails every day, warns only the first
    time. Never make it nag.
+7. **Times are ship time.** The press clock is fixed **UTC−5** on every hull (Miami
+   winter time; it does not spring forward — proven from the log across 8 Mar
+   2026, see `lib/shiptime.js`). The report moves each job to the zone of the
+   port the ship's own day planners/inserts name for that day; a day with no
+   such document carries the nearest port and is marked **est.** Never show
+   press-clock hours as "the time on board". `#clk=press` shows the raw clock.
+   An unplaced port name → add it to `ZONES` (IANA zone, specific before general).
 
 ## Standing decisions — do not re-raise
 - Repo/org placement (despensasupermercados vs a DG3 org) is **settled by Miguel.

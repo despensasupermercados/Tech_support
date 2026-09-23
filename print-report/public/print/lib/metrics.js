@@ -137,7 +137,7 @@ export function dur(s) {
 }
 
 // ---- the press's working day ----------------------------------------------
-// One ship's jobs → per calendar day (ship's clock):
+// One ship's jobs → per calendar day (whatever clock endTs is on — the report feeds ship time):
 //   first  — seconds after midnight the first job started (clipped to the day)
 //   last   — seconds after midnight the last job ended   (clipped to the day)
 //   window — last − first: the span the press was in use that day
