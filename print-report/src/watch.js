@@ -7,12 +7,17 @@
 //   runWatch()— gather → assess → store → email when something is NEW
 //
 // Status per check: ok · info · warn · fail.
-//   fail  = the record itself is broken (bad timestamps, impossible run times,
-//           pages not served). Emailed every day it persists.
-//   warn  = the record is fine but something needs a person (a ship gone quiet,
-//           a gap in the log, an interrupted upload). Emailed ONCE, when it first
-//           appears — a gap does not nag nightly.
+//   fail  = something is WRONG: the record is broken (bad timestamps,
+//           impossible run times) or the pages are not served. The only status
+//           that emails — once when it starts, then at most once every 7 days
+//           while it persists.
+//   warn  = the record is fine but a person may want to know (a ship gone quiet,
+//           a gap in the log, an interrupted upload). Never emailed — shown in
+//           the report footer and at /print/api/watch.
 //   info  = worth knowing, never emailed.
+//
+// Miguel, 2026-09-23: "I only need an email if something is wrong. Not daily
+// status." A gap in the log is a fact about the ship, not a fault in the app.
 //
 // Every check names its subject: which ship, which dates, which upload. Never
 // "a ship is stale".
@@ -98,10 +103,16 @@ export function assess(f, limits = LIMITS) {
   return { status, checks };
 }
 
-// What goes in the email: every fail, and only warns that are new since last run.
-export function toSend(result, previousChecks = []) {
-  const before = new Set(previousChecks.filter((c) => c.status === "warn").map((c) => c.id));
-  return result.checks.filter((c) => c.status === "fail" || (c.status === "warn" && !before.has(c.id)));
+// What goes in the email: only fails, and a fail only if it has not been
+// emailed in the last REMIND_DAYS. `sentBefore` maps check id → ISO time it was
+// last emailed.
+export const REMIND_DAYS = 7;
+export function toSend(result, sentBefore = {}, now = new Date()) {
+  return result.checks.filter((c) => {
+    if (c.status !== "fail") return false;
+    const last = sentBefore[c.id];
+    return !last || now - new Date(last) >= REMIND_DAYS * 86400000;
+  });
 }
 
 // ---------------------------------------------------------------- I/O
@@ -167,7 +178,7 @@ export async function gather(env, now = new Date()) {
 
 export function alertEmail(items, result, origin = "https://hon.cims.work") {
   const fails = items.filter((c) => c.status === "fail").length;
-  const subject = `Print report night watch · ${fails ? `${fails} problem${fails > 1 ? "s" : ""}` : `${items.length} new item${items.length > 1 ? "s" : ""}`} · ${items[0].title}`.slice(0, 160);
+  const subject = `Print report · something is wrong · ${items[0].title}`.slice(0, 160);
   const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   const color = { fail: "#96281B", warn: "#B7791F" };
   const label = { fail: "PROBLEM", warn: "NEW" };
@@ -176,11 +187,11 @@ export function alertEmail(items, result, origin = "https://hon.cims.work") {
     <div style="font-size:15px;font-weight:600;color:#1B3A5C;margin-top:2px;">${esc(c.title)}</div>
     ${c.detail ? `<div style="font-size:13px;color:#374151;margin-top:3px;line-height:1.45;">${esc(c.detail)}</div>` : ""}</td></tr>`).join("");
   const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F4F6" style="background:#F3F4F6;"><tr><td align="center" style="padding:16px;">
-  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;max-width:600px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;max-width:600px;width:100%;">
   <tr><td style="padding:0;">${mast()}</td></tr>
   <tr><td style="padding:22px 24px 6px;font-family:Helvetica,Arial,sans-serif;">
     <div style="font-size:18px;font-weight:700;color:#1B3A5C;">Print report — night watch</div>
-    <div style="font-size:13px;color:#6B7280;margin-top:4px;">What the nightly self-check found. Items already reported are not repeated.</div>
+    <div style="font-size:13px;color:#6B7280;margin-top:4px;">The nightly self-check found ${fails === 1 ? "a problem" : `${fails} problems`}. You get this email only when something is wrong; if it is still wrong in 7 days you will hear once more.</div>
   </td></tr>
   <tr><td style="padding:6px 24px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table></td></tr>
   <tr><td style="padding:10px 24px 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6B7280;">
@@ -194,8 +205,11 @@ export async function runWatch(env, { trigger = "manual", email = trigger === "c
   let result;
   try { result = assess(await gather(env, now)); }
   catch (e) { result = { status: "fail", checks: [{ id: "watch", status: "fail", title: "The night watch itself failed", detail: e.message }] }; }
-  const prev = await env.DB.prepare("SELECT checks FROM watch_runs WHERE trigger = 'cron' ORDER BY id DESC LIMIT 1").first().catch(() => null);
-  const items = toSend(result, prev ? JSON.parse(prev.checks) : []);
+  // when each fail was last emailed (sent = JSON array of check ids)
+  const sentRows = (await env.DB.prepare("SELECT ran_at, sent FROM watch_runs WHERE sent IS NOT NULL AND ran_at >= ? ORDER BY id DESC").bind(new Date(now.getTime() - REMIND_DAYS * 86400000).toISOString()).all().catch(() => ({ results: [] }))).results || [];
+  const sentBefore = {};
+  for (const r of sentRows) for (const id of JSON.parse(r.sent || "[]")) sentBefore[id] ||= r.ran_at;
+  const items = toSend(result, sentBefore, now);
   let emailed = 0;
   if (email && items.length && env.MAILER) {
     const to = String(env.WATCH_ALERT_TO || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -213,7 +227,7 @@ export async function runWatch(env, { trigger = "manual", email = trigger === "c
       emailed = res && res.ok ? 1 : 0;
     }
   }
-  await env.DB.prepare("INSERT INTO watch_runs (ran_at, trigger, status, checks, emailed) VALUES (?,?,?,?,?)")
-    .bind(now.toISOString(), trigger, result.status, JSON.stringify(result.checks), emailed).run().catch(() => {});
+  await env.DB.prepare("INSERT INTO watch_runs (ran_at, trigger, status, checks, emailed, sent) VALUES (?,?,?,?,?,?)")
+    .bind(now.toISOString(), trigger, result.status, JSON.stringify(result.checks), emailed, emailed ? JSON.stringify(items.map((c) => c.id)) : null).run().catch(() => {});
   return { ...result, ran_at: now.toISOString(), trigger, emailed, sent: items.map((c) => c.id) };
 }

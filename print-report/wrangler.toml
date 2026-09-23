@@ -23,10 +23,11 @@ binding = "DB"
 database_name = "cims-print"
 database_id = "a6c4bf30-c41f-4120-ac28-e22119e8001b"
 
-# Night watch (src/watch.js): 06:15 UTC daily. Emails only fails, and warns
-# the first time they appear — never the same gap twice.
+# Night watch (src/watch.js): 06:15 UTC daily. Emails ONLY when something is
+# wrong — once, then at most weekly while it persists. Never a status email.
+# Upload reminder (src/remind.js): 13:00 UTC on the 1st (09:00 Miami).
 [triggers]
-crons = ["15 6 * * *"]
+crons = ["15 6 * * *", "0 13 1 * *"]
 
 # Estate mail transport — the only holder of the Resend key.
 [[services]]
@@ -35,3 +36,6 @@ service = "cims-mailer"
 
 [vars]
 WATCH_ALERT_TO = "Miguel.Sanmartin@dg3.com"
+REMIND_TO = "Ohji.Miranda@dg3.com"
+# Off until Miguel signs off the rendered reminder. "1" to send.
+REMIND_ENABLED = "0"
