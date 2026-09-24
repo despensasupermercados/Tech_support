@@ -291,6 +291,26 @@ async function loadOnFile() {
   } catch { $("#ships").innerHTML = `<div class="muted">Could not reach the record — no connection.</div>`; }
 }
 loadOnFile();
+
+// Stay current. Tapping tabs, months and ships only changes the #hash, so a tab
+// left open on a phone never reloads and keeps running old code (Miguel read a
+// two-days-old layout on 24 Sep). When the page comes back into view — or every
+// 15 min — it asks the server which version is live and reloads if it changed.
+// Everything the view shows lives in the URL, so a reload loses nothing.
+(() => {
+  let seen = null;
+  const check = async () => {
+    try {
+      const v = (await fetch("api/health", { cache: "no-store" }).then((r) => r.json())).version;
+      if (seen && v && v !== seen) location.reload();
+      seen = seen || v;
+    } catch {}
+  };
+  check();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+  addEventListener("pageshow", (e) => { if (e.persisted) check(); });
+  setInterval(check, 15 * 60 * 1000);
+})();
 </script>
 </body>
 </html>

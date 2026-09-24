@@ -676,6 +676,21 @@ function groupBy(jobs, keyFn, valFn) {
 
 // ---------------------------------------------------------------- charts
 const PHONE = () => matchMedia("(max-width: 700px)").matches;
+// Phone tiles: one short line under each number — read at a glance, not a sentence
+const SHORT = {
+  "worked per press, per day": "worked a day", "worked per press, on a typical day": "worked a day",
+  "working window": "first → last job", "of the window actually printing": "of it printing",
+  "typical start → finish": "start → finish", "days worked, per press": "days worked",
+  "stalled, per press per day": "stalled a day", "stalled per press, on a typical day": "stalled a day",
+  "Press busy (machine time)": "press busy", "Jobs printed": "jobs", "Sheets fed": "sheets",
+  "of clicks are colour": "colour clicks", "stalled on the press": "stalled",
+  "jobs stalled 5 min or more": "jobs stalled 5 m+", "stalled more than 1 hour": "stalled 1 h+",
+  "longest single stall": "longest stall", "printing at normal speed": "printing",
+  "jobs cancelled": "cancelled", "waste sheets": "waste sheets", "jobs that never started": "never started",
+  "authentication errors": "login errors", "press time on jobs later cancelled": "press time, cancelled",
+  "sheets fed on cancelled jobs": "sheets, cancelled",
+};
+function shortTiles() { if (!PHONE()) return; for (const l of document.querySelectorAll(".kpi .l")) { const t = l.textContent.trim(); if (SHORT[t]) l.textContent = SHORT[t]; } }
 // top n rows + "All others" (summed), so a phone never scrolls a 20-row bar list
 function capRows(rows, n) { if (rows.length <= n) return rows; return [...rows.slice(0, n - 1), ["All others", rows.slice(n - 1).reduce((t, r) => t + r[1], 0)]]; }
 // compact duration for lists: 45s · 3m · 1h 05m
@@ -772,7 +787,8 @@ function syncControls() {
   $("#fColor").value = S.color; $("#fResult").value = S.result;
   if (document.activeElement !== $("#fQ")) $("#fQ").value = S.q;
   $("#fMoney").classList.toggle("on", S.money);
-  const nf = (S.period !== "all" && S.tab !== "insights" ? 1 : 0) + S.depts.length + S.cats.length + (S.color !== "all") + (S.result !== "all") + (S.q ? 1 : 0) + (S.money ? 1 : 0);
+  const quickPeriod = S.period === "all" || /^\d{4}-\d{2}$/.test(S.period);
+  const nf = (!quickPeriod && S.tab !== "insights" ? 1 : 0) + S.depts.length + S.cats.length + (S.color !== "all") + (S.result !== "all") + (S.q ? 1 : 0) + (S.money ? 1 : 0);
   $("#fCnt").hidden = !nf; $("#fCnt").textContent = nf;
   for (const [sel, key] of [["#ddDept", "depts"], ["#ddCat", "cats"]]) { const c = $(`${sel} .cnt`); c.hidden = !S[key].length; c.textContent = S[key].length; }
   // active drill-down chips
@@ -797,7 +813,7 @@ function syncControls() {
   $$("#scope .clk button").forEach((b) => (b.onclick = () => set({ clk: b.dataset.c })));
   const onIns = S.tab === "insights";
   $("#fPeriod").hidden = onIns; if (onIns) { $("#fFrom").hidden = $("#fTo").hidden = true; }
-  const any = chips.length || S.ships.length || S.period !== "all" || S.color !== "all" || S.result !== "all";
+  const any = chips.length || S.ships.length || !quickPeriod || S.color !== "all" || S.result !== "all";
   $("#active").innerHTML = chips.join("") + (any ? `<button class="linkbtn" id="reset">Reset all filters</button>` : "");
   $$("#active .fchip button").forEach((b) => (b.onclick = () => set(JSON.parse(b.dataset.p))));
   const r = $("#reset"); if (r) r.onclick = () => set({ ...DEFAULT, tab: S.tab, money: S.money, metric: S.metric });
@@ -839,6 +855,7 @@ function render() {
   if (!jobs.length) { $("#tab").innerHTML = `<div class="card empty"><h2>No jobs match these filters</h2><p>${fday(a)} – ${fday(b)}. Widen the dates or remove a filter.</p></div>`; return; }
   const ctx = { jobs, a, b, k: kpis(jobs) };
   ({ insightsTab, overview, workload, printed, stalls, cancels, jobsTab }[S.tab === "jobs" ? "jobsTab" : S.tab === "insights" ? "insightsTab" : S.tab] || overview)(ctx);
+  shortTiles();
 }
 
 function metricSeg(id) {
@@ -1177,7 +1194,7 @@ function workload({ jobs, a, b, k }) {
     <div class="card kpi"><div class="v">${dur(med(pdays.map((x) => x.window))).replace(/ (h|min)/g, "<small>$1</small>")}</div><div class="l">working window</div><div class="d">first job start → last job end</div></div>
     <div class="card kpi"><div class="v">${pct(sumBusy, sumWin)}<small>%</small></div><div class="l">of the window actually printing</div><div class="d">the rest is idle between jobs</div></div>
     <div class="card kpi"><div class="v tight">${clock(med(pdays.map((x) => x.first)))}<small>→</small>${clock(med(pdays.map((x) => x.last)))}</div><div class="l">typical start → finish</div><div class="d">${S.clk === "press" ? "press clock (UTC−5)" : "ship time"}</div></div>
-    <div class="card kpi"><div class="v">${Math.round(perShipDays.reduce((t, x) => t + x, 0) / Math.max(1, ships.length))}<small>/ ${nDays}</small></div><div class="l">days worked, per press</div><div class="d">${ships.length > 1 ? ships.map((s, i) => `${esc(s)} ${perShipDays[i]}${missingIn(s, a, b) ? ` <span class="warnt">(${missingIn(s, a, b)} not logged)</span>` : ""}`).join(" · ") : "days with at least one job"}</div>${ships.some((s) => missingIn(s, a, b)) ? `<div class="gapnote">⚠ ${ships.filter((s) => missingIn(s, a, b)).map((s) => `${esc(s)} ${missingIn(s, a, b)} d`).join(" · ")} with nothing in the press log</div>` : ""}</div>
+    <div class="card kpi"><div class="v">${Math.round(perShipDays.reduce((t, x) => t + x, 0) / Math.max(1, ships.length))}<small>/ ${nDays}</small></div><div class="l">days worked, per press</div><div class="d">${ships.length > 1 ? ships.map((s, i) => `${esc(s)} ${perShipDays[i]}${missingIn(s, a, b) ? ` <span class="warnt">(${missingIn(s, a, b)} not logged)</span>` : ""}`).join(" · ") : "days with at least one job"}</div>${ships.some((s) => missingIn(s, a, b)) ? `<div class="gapnote">⚠ ${ships.filter((s) => missingIn(s, a, b)).map((s) => `${esc(s)}: ${missingIn(s, a, b)} days no log`).join(" · ")}</div>` : ""}</div>
     <div class="card kpi" style="--kc:${C.stall}"><div class="v">${noBase.length ? "—" : dur(med(pdays.map((x) => x.stall))).replace(/ (h|min|s)$/g, "<small>$1</small>")}</div><div class="l">stalled, per press per day</div><div class="d">${top ? `longest day: ${dur(top.busy)} · ${esc(top.s)} ${fdayShort(top.d)}` : ""}</div></div>
   </div>
 
@@ -1247,7 +1264,7 @@ function workload({ jobs, a, b, k }) {
     const gap = !p && MISSING[s]?.get(gday);
     return `<div class="gs${p ? "" : " off"}${gap ? " gap" : ""}"><div class="gs-a"><i class="dot" style="background:${shipColor(s)}"></i><b>${esc(s)}</b><span class="gs-t">${p ? `${clock(p.first)}–${clock(p.last)}` : gap ? "press logged nothing" : "no printing"}</span></div>
       <div class="gs-h">${p ? hm(p.busy - st) : "–"}${st ? `<em>+${hm(st)} stalled</em>` : ""}</div>
-      <div class="gs-w${w?.est ? " est" : ""}">${gap ? `⚠ ${fdayShort(gap.from)} – ${fdayShort(gap.to)} (${gap.n} days) · nothing in the press log` : w ? `⚓ <span>${esc(w.place)}</span> · ${w.off}${w.est ? " · est." : ""}` : "press clock · UTC−5"}</div></div>`; }).join("");
+      <div class="gs-w${w?.est ? " est" : ""}">${gap ? `⚠ ${fdayShort(gap.from)} – ${fdayShort(gap.to)} · ${gap.n} days, no log` : w ? `⚓ <span>${esc(w.place)}</span> · ${w.off}${w.est ? " · est." : ""}` : "press clock · UTC−5"}</div></div>`; }).join("");
   const ws = $("#wShip"); if (ws) ws.onclick = (e) => { const bt = e.target.closest("button"); if (bt) set({ wship: bt.dataset.s }); };
 
   // ---- actogram: one column per day, 00 at top
@@ -1558,6 +1575,26 @@ async function nightWatch() {
   buildControls(); syncControls(); render();
   nightWatch();
   addEventListener("hashchange", () => { readHash(); if (S.clk !== DERIVED) derive(); syncControls(); render(); });
+})();
+
+// Stay current. Tapping tabs, months and ships only changes the #hash, so a tab
+// left open on a phone never reloads and keeps running old code (Miguel read a
+// two-days-old layout on 24 Sep). When the page comes back into view — or every
+// 15 min — it asks the server which version is live and reloads if it changed.
+// Everything the view shows lives in the URL, so a reload loses nothing.
+(() => {
+  let seen = null;
+  const check = async () => {
+    try {
+      const v = (await fetch("api/health", { cache: "no-store" }).then((r) => r.json())).version;
+      if (seen && v && v !== seen) location.reload();
+      seen = seen || v;
+    } catch {}
+  };
+  check();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+  addEventListener("pageshow", (e) => { if (e.persisted) check(); });
+  setInterval(check, 15 * 60 * 1000);
 })();
 </script>
 </body>
