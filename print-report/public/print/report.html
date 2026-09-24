@@ -87,6 +87,10 @@ input[type=checkbox] { accent-color: var(--brand); width: 15px; height: 15px; }
 .gsum { display: grid; gap: 8px; margin-top: 8px; }
 .gs { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "a h" "w w"; gap: 2px 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid var(--line); }
 .gs.off { opacity: .55; }
+.gs.gap { opacity: 1; border-color: rgba(240,180,60,.4); border-style: dashed; }
+.gs.gap .gs-t, .gs.gap .gs-w { color: #f0c46a; }
+.warnt { color: #f0c46a; }
+.gapnote { font-size: 11.5px; color: #f0c46a; margin-top: 4px; }
 .gs-a { grid-area: a; display: flex; align-items: center; gap: 7px; min-width: 0; white-space: nowrap; }
 .gs-a b { color: #fff; font-size: 14px; }
 .gs-t { color: var(--ink-2); font-size: 12.5px; font-variant-numeric: tabular-nums; }
@@ -487,6 +491,7 @@ function derive() {
   }
   ALL.sort((a, b) => a.endMs - b.endMs);
   buildDocNames();
+  findMissing();
   DAY_MIN = ALL[0]?.day; DAY_MAX = ALL[ALL.length - 1]?.day;
   $("#datachip").textContent = `${n0(ALL.length)} jobs · ${SHIPS.length} ship${SHIPS.length > 1 ? "s" : ""} · ${fday(DAY_MIN)} – ${fday(DAY_MAX)}`;
 }
@@ -500,6 +505,23 @@ function placeName(raw) {
   return p.replace(/\s+,/g, ",");
 }
 // Where a ship was, as data: { place, off, est } — null on the press clock
+// Days a ship's export simply does not cover: a run of 3+ days with no job at
+// all, inside the dates on file. Not "a quiet day" — the log has nothing, so
+// the report says so instead of drawing an empty press. (Onward 15 Aug–6 Sep
+// and Quest 1–12 Sep 2026 are absent from the Excel itself, checked 24 Sep.)
+const MISSING = {};   // ship → Map(day → { from, to, n })
+function findMissing() {
+  for (const s of SHIPS) {
+    const days = [...new Set(ALL.filter((j) => j.ship === s).map((j) => j.day))].sort();
+    const m = new Map();
+    for (let i = 1; i < days.length; i++) {
+      const n = daysBetween(days[i - 1], days[i]) - 2;
+      if (n >= 3) { const from = addDays(days[i - 1], 1), to = addDays(days[i], -1); for (let d = from; d <= to; d = addDays(d, 1)) m.set(d, { from, to, n }); }
+    }
+    MISSING[s] = m;
+  }
+}
+const missingIn = (s, a, b) => { let n = 0; for (const d of MISSING[s]?.keys() || []) if (d >= a && d <= b) n++; return n; };
 function whereOf(ship, day) {
   if (S.clk === "press") return null;
   const e = ITIN[ship]?.days.get(day); if (!e) return null;
@@ -1148,7 +1170,7 @@ function workload({ jobs, a, b, k }) {
     <div class="card kpi"><div class="v">${dur(med(pdays.map((x) => x.window))).replace(/ (h|min)/g, "<small>$1</small>")}</div><div class="l">working window</div><div class="d">first job start → last job end</div></div>
     <div class="card kpi"><div class="v">${pct(sumBusy, sumWin)}<small>%</small></div><div class="l">of the window actually printing</div><div class="d">the rest is idle between jobs</div></div>
     <div class="card kpi"><div class="v tight">${clock(med(pdays.map((x) => x.first)))}<small>→</small>${clock(med(pdays.map((x) => x.last)))}</div><div class="l">typical start → finish</div><div class="d">${S.clk === "press" ? "press clock (UTC−5)" : "ship time"}</div></div>
-    <div class="card kpi"><div class="v">${Math.round(perShipDays.reduce((t, x) => t + x, 0) / Math.max(1, ships.length))}<small>/ ${nDays}</small></div><div class="l">days worked, per press</div><div class="d">${ships.length > 1 ? ships.map((s, i) => `${esc(s)} ${perShipDays[i]}`).join(" · ") : "days with at least one job"}</div></div>
+    <div class="card kpi"><div class="v">${Math.round(perShipDays.reduce((t, x) => t + x, 0) / Math.max(1, ships.length))}<small>/ ${nDays}</small></div><div class="l">days worked, per press</div><div class="d">${ships.length > 1 ? ships.map((s, i) => `${esc(s)} ${perShipDays[i]}${missingIn(s, a, b) ? ` <span class="warnt">(${missingIn(s, a, b)} not in file)</span>` : ""}`).join(" · ") : "days with at least one job"}</div>${ships.some((s) => missingIn(s, a, b)) ? `<div class="gapnote">⚠ ${ships.filter((s) => missingIn(s, a, b)).map((s) => `${esc(s)} ${missingIn(s, a, b)} d`).join(" · ")} missing from the export</div>` : ""}</div>
     <div class="card kpi" style="--kc:${C.stall}"><div class="v">${noBase.length ? "—" : dur(med(pdays.map((x) => x.stall))).replace(/ (h|min|s)$/g, "<small>$1</small>")}</div><div class="l">stalled, per press per day</div><div class="d">${top ? `longest day: ${dur(top.busy)} · ${esc(top.s)} ${fdayShort(top.d)}` : ""}</div></div>
   </div>
 
@@ -1198,22 +1220,27 @@ function workload({ jobs, a, b, k }) {
     const seg = (x, y, kind) => { const A = Math.max(x, d0), B = Math.min(y, d0 + 86400000); if (B > A) blocks.push({ value: [row, (A - d0) / 3600000, (B - d0) / 3600000], kind, j }); };
     seg(st, pEnd, "print"); if (j.stallS > 0) seg(pEnd, en, "stall");
   }
+  ships.forEach((s, row) => { if (MISSING[s]?.has(gday)) blocks.push({ value: [row, 0, 24], kind: "gap", j: null }); });
   const phone = matchMedia("(max-width: 700px)").matches;
   const H = phone ? 16 : 22;
   chart("chGantt", {
     grid: { left: phone ? 62 : 80, right: phone ? 10 : 16, top: 10, bottom: 26 },
-    tooltip: { formatter: (p) => { const j = p.data.j; return `<b>${esc(j.file || "(no file name)")}</b><br>${esc(j.ship)} · ${esc(j.dept)} · ${esc(j.cat)}<br>${new Date(j.startMs).toISOString().slice(11, 16)} → ${j.endTs.slice(11, 16)} · ${dur(j.runS)} · ${n0(j.feed)} sheets${j.stallS >= STALL_JOB_S ? `<br><span style="color:${C.stall}">stalled ${dur(j.stallS)} past normal (${dur(j.expS)})</span>` : ""}`; } },
+    tooltip: { formatter: (p) => { const j = p.data.j; if (!j) return "No jobs in the export for this day — the file has a gap here, not a quiet press."; return `<b>${esc(j.file || "(no file name)")}</b><br>${esc(j.ship)} · ${esc(j.dept)} · ${esc(j.cat)}<br>${new Date(j.startMs).toISOString().slice(11, 16)} → ${j.endTs.slice(11, 16)} · ${dur(j.runS)} · ${n0(j.feed)} sheets${j.stallS >= STALL_JOB_S ? `<br><span style="color:${C.stall}">stalled ${dur(j.stallS)} past normal (${dur(j.expS)})</span>` : ""}`; } },
     xAxis: axis({ type: "value", min: 0, max: 24, interval: phone ? 6 : 2, axisLabel: { color: C.ink3, fontSize: 11, formatter: (v) => phone ? String(v).padStart(2, "0") : `${String(v).padStart(2, "0")}:00` } }),
     yAxis: axis({ type: "category", data: ships, inverse: true, axisLine: { show: false }, splitLine: { show: false }, axisLabel: { color: C.ink2, fontSize: phone ? 12 : 12.5 } }),
     series: [{ type: "custom", progressive: 0, data: blocks, encode: { x: [1, 2], y: 0 },
       renderItem: (params, api) => { const s0 = api.coord([api.value(1), api.value(0)]), s1 = api.coord([api.value(2), api.value(0)]); const kind = blocks[params.dataIndex].kind;
+        if (kind === "gap") return { type: "group", children: [
+          { type: "rect", shape: { x: s0[0], y: s0[1] - H / 2, width: s1[0] - s0[0], height: H, r: 4 }, style: { fill: "rgba(240,180,60,.06)", stroke: "rgba(240,180,60,.45)", lineWidth: 1, lineDash: [4, 4] } },
+          { type: "text", style: { text: "no data in the export for this day", x: (s0[0] + s1[0]) / 2, y: s0[1], align: "center", verticalAlign: "middle", fill: "#f0c46a", font: "12px DM Sans, system-ui, sans-serif" } }] };
         return { type: "rect", shape: { x: s0[0], y: s0[1] - H / 2, width: Math.max(1.5, s1[0] - s0[0]), height: H, r: 3 }, style: { fill: kind === "print" ? C.print : C.stall, stroke: css("--card"), lineWidth: 1 } }; } }],
   });
   const hm = (sec) => { const m = Math.round(sec / 60); return m < 1 ? "<1m" : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
   $("#gSum").innerHTML = ships.map((s) => { const p = prof[s][gday]; const w = whereOf(s, gday); const st = p && p.stall >= 60 && BASE[s] ? p.stall : 0;
-    return `<div class="gs${p ? "" : " off"}"><div class="gs-a"><i class="dot" style="background:${shipColor(s)}"></i><b>${esc(s)}</b><span class="gs-t">${p ? `${clock(p.first)}–${clock(p.last)}` : "no printing"}</span></div>
+    const gap = !p && MISSING[s]?.get(gday);
+    return `<div class="gs${p ? "" : " off"}${gap ? " gap" : ""}"><div class="gs-a"><i class="dot" style="background:${shipColor(s)}"></i><b>${esc(s)}</b><span class="gs-t">${p ? `${clock(p.first)}–${clock(p.last)}` : gap ? "not in the export" : "no printing"}</span></div>
       <div class="gs-h">${p ? hm(p.busy - st) : "–"}${st ? `<em>+${hm(st)} stalled</em>` : ""}</div>
-      <div class="gs-w${w?.est ? " est" : ""}">${w ? `⚓ <span>${esc(w.place)}</span> · ${w.off}${w.est ? " · est." : ""}` : "press clock · UTC−5"}</div></div>`; }).join("");
+      <div class="gs-w${w?.est ? " est" : ""}">${gap ? `⚠ ${fdayShort(gap.from)} – ${fdayShort(gap.to)} (${gap.n} days) missing from the file` : w ? `⚓ <span>${esc(w.place)}</span> · ${w.off}${w.est ? " · est." : ""}` : "press clock · UTC−5"}</div></div>`; }).join("");
   const ws = $("#wShip"); if (ws) ws.onclick = (e) => { const bt = e.target.closest("button"); if (bt) set({ wship: bt.dataset.s }); };
 
   // ---- actogram: one column per day, 00 at top
