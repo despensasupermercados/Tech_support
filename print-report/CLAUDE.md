@@ -22,6 +22,11 @@ Push to `main` → GitHub Actions `print-report` → test → wrangler deploy.
 `src/worker.js` with every change). Schema changes: add a numbered file in
 `migrations/`, apply it to the live D1, add it to `test/helpers/d1.js`.
 
+**Reads come from KV, not D1** (binding `CACHE`, namespace `CIMS_PRINT_CACHE`,
+`d2c49414…`). D1 is in APAC; every read query crossed the Pacific. Job packs are
+keyed by the ship's job count; any upload write clears `v:<ship>` and `summary`.
+A new pack shape → bump `JOBS_FORMAT` in `src/worker.js`.
+
 ```bash
 npm test                  # must be green
 DB=/tmp/print.db npm run dev   # http://localhost:8788/print/
