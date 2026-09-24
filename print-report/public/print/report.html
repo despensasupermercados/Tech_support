@@ -67,6 +67,24 @@ input[type=checkbox] { accent-color: var(--brand); width: 15px; height: 15px; }
 /* insights */
 .ibar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; margin-bottom: 12px; }
 .inav { display: flex; align-items: center; gap: 8px; }
+.dnav { display: flex; align-items: center; gap: 8px; }
+.dnav-d { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 118px; height: 44px; line-height: 1.1; }
+.dnav-d b { font-family: var(--display); font-size: 18px; color: #fff; font-weight: 600; white-space: nowrap; }
+.dnav-d small { font-size: 11px; color: var(--ink-3); }
+.dnav .btn { height: 40px; min-width: 40px; padding: 0 12px; font-size: 18px; }
+.dnav .chipbtn { font-size: 12.5px; margin-left: 4px; color: #f6d9a8; }
+.gsum { display: grid; gap: 8px; margin-top: 8px; }
+.gs { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "a h" "w w"; gap: 2px 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid var(--line); }
+.gs.off { opacity: .55; }
+.gs-a { grid-area: a; display: flex; align-items: center; gap: 7px; min-width: 0; white-space: nowrap; }
+.gs-a b { color: #fff; font-size: 14px; }
+.gs-t { color: var(--ink-2); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.gs-h { grid-area: h; text-align: right; font-family: var(--display); font-size: 18px; font-weight: 600; color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gs-h em { display: block; font-style: normal; font-size: 11.5px; font-weight: 600; color: var(--serious); }
+.gs-w { grid-area: w; font-size: 12px; color: #cfe2fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-w.est { color: var(--ink-3); }
+@media (min-width: 701px) { .gsum { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); } }
+@media (max-width: 700px) { .chart.gantt { height: var(--gh) !important; } .ph:has(.dnav) { flex-direction: column; align-items: stretch; } .dnav { justify-content: space-between; } .dnav-d { flex: 1; } }
 .inav { flex-wrap: wrap; }
 .inav .per { font-family: var(--display); font-size: 22px; font-weight: 600; color: #fff; min-width: 220px; text-align: center; }
 @media (max-width: 560px) { .inav .per { min-width: 0; font-size: 18px; flex: 1 1 100%; order: -1; text-align: left; } }
@@ -230,7 +248,11 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
   .wrap { padding: 0 12px; }
   .mast { padding: 8px 12px; }
   .frow { gap: 8px; padding: 8px 0; }
-  #fShip { flex-wrap: nowrap; overflow-x: auto; max-width: calc(100% - 100px); scrollbar-width: none; }
+  #fShip { flex-wrap: nowrap; overflow-x: auto; width: 100%; max-width: 100%; scrollbar-width: none; }
+  #fShip button { flex: 1 1 auto; padding: 0 8px; font-size: 12.5px; }
+  #fBtn { margin-left: auto; }
+  .ph .seg { display: flex; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .ph .seg button { flex: 1 1 auto; padding: 0 8px; white-space: nowrap; }
   #fShip::-webkit-scrollbar { display: none; }
   #fShip button { flex: none; }
   .fbtn { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
@@ -294,7 +316,7 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
   .m-hide { display: none !important; }
 }
 .m-only { display: none; }
-@media (max-width: 700px) { .m-only { display: block; } .d-only { display: none !important; } }
+@media (max-width: 700px) { .m-only { display: block; } .d-only, .d-inl { display: none !important; } }
 .empty { padding: 60px 20px; text-align: center; color: var(--ink-3); }
 .empty h2 { color: var(--ink); margin-bottom: 8px; }
 .loading { display: grid; place-items: center; min-height: 50vh; color: var(--ink-3); gap: 12px; }
@@ -455,12 +477,25 @@ function derive() {
 }
 // Where a ship was on a day (ship-time view): "⚓ Lisbon, Portugal · UTC+1", and
 // whether a document on the day says so or it is carried from the nearest port.
+// "INSERT I FERROL, SPAIN" → "Ferrol, Spain": drop document words, calm the capitals
+function placeName(raw) {
+  let p = String(raw).normalize("NFC").replace(/\s+/g, " ").trim();
+  for (let k = 0; k < 3; k++) p = p.replace(/^(?:insert|embarkation|embark|debark|combo)\b\s*(?:[Il]\s+|[-_|]\s*)?/i, "");
+  if (p === p.toUpperCase()) p = p.toLowerCase().replace(/(^|[\s(,\-/])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Uk|Usa|Us)\b/g, (m) => m.toUpperCase());
+  return p.replace(/\s+,/g, ",");
+}
+// Where a ship was, as data: { place, off, est } — null on the press clock
+function whereOf(ship, day) {
+  if (S.clk === "press") return null;
+  const e = ITIN[ship]?.days.get(day); if (!e) return null;
+  return { place: placeName(e.place), off: utcLabel(offsetMin(e.tz, Date.parse(day + "T12:00:00Z"))), est: e.how !== "port" };
+}
 function whereLine(ship, day) {
   if (S.clk === "press") return `<span class="where est" title="Raw press clock — the same fixed UTC−5 on every ship">${ICON.clock} Press clock · UTC−5</span>`;
   const e = ITIN[ship]?.days.get(day);
   if (!e) return `<span class="where est" title="No port on file near this day — press clock shown">${ICON.clock} Press clock · UTC−5</span>`;
   const off = utcLabel(offsetMin(e.tz, Date.parse(day + "T12:00:00Z")));
-  const place = e.place.replace(/^(insert|embarkation|debark)\s+i\s+/i, "").replace(/\s+/g, " ").trim();
+  const place = placeName(e.place);
   const t = e.how === "port" ? "Port from the ship's own documents for this day" : "No document names a port this day — zone carried from the nearest port day";
   return `<span class="where${e.how === "port" ? "" : " est"}" title="${t}">⚓ ${esc(place.length > 34 ? place.slice(0, 33) + "…" : place)} · ${off}${e.how === "port" ? "" : " · est."}</span>`;
 }
@@ -587,10 +622,13 @@ function groupBy(jobs, keyFn, valFn) {
 // ---------------------------------------------------------------- charts
 const charts = new Map();
 // Charts read along a time axis: on a phone they keep a readable width and swipe.
-const WIDE = new Set(["chGantt", "chActo", "chDayHrs", "chHeat", "chMx", "chShip", "chDaily", "chStH", "chWs"]);
+const DAYWISE = new Set(["chActo", "chDayHrs", "chDaily"]);
+const WIDE = new Set(["chActo", "chDayHrs", "chMx", "chShip", "chDaily", "chStH", "chWs"]);
 function chart(id, option, onClick) {
   const el = document.getElementById(id); if (!el) return;
-  if (WIDE.has(id) && !el.parentElement.classList.contains("hs")) { const w = document.createElement("div"); w.className = "hs"; el.replaceWith(w); w.appendChild(el); }
+  // day-by-day charts fit the screen when the view is a month or less
+  const fits = DAYWISE.has(id) && daysBetween(...periodRange()) <= 45;
+  if (WIDE.has(id) && !fits && !el.parentElement.classList.contains("hs")) { const w = document.createElement("div"); w.className = "hs"; el.replaceWith(w); w.appendChild(el); }
   let c = charts.get(id);
   if (c && c.getDom() !== el) { c.dispose(); c = null; }
   if (!c) { c = echarts.init(el, null, { renderer: "canvas" }); charts.set(id, c); }
@@ -610,7 +648,7 @@ const axis = (o = {}) => ({ axisLine: { lineStyle: { color: C.line2 } }, axisTic
 // ---------------------------------------------------------------- controls
 function buildControls() {
   const seg = $("#fShip");
-  seg.innerHTML = `<button data-s="">All ships</button>` + SHIPS.map((s) => `<button data-s="${esc(s)}"><span class="dot" style="background:${shipColor(s)}"></span>${esc(s)}</button>`).join("");
+  seg.innerHTML = `<button data-s="">All<span class="d-inl"> ships</span></button>` + SHIPS.map((s) => `<button data-s="${esc(s)}"><span class="dot" style="background:${shipColor(s)}"></span>${esc(s)}</button>`).join("");
   seg.onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
     const s = b.dataset.s;
@@ -1048,6 +1086,8 @@ function workload({ jobs, a, b, k }) {
   const allDays = [...new Set(pdays.map((x) => x.d))].sort();
   const gday = allDays.includes(S.gday) ? S.gday : allDays[allDays.length - 1];
   const top = pdays.slice().sort((x, y) => y.busy - x.busy)[0];
+  // "Busiest day" = the most printing; a job stuck for 12 h is not a busy day
+  const topPrint = pdays.slice().sort((x, y) => (y.busy - (y.stall || 0)) - (x.busy - (x.stall || 0)))[0];
   const sumBusy = pdays.reduce((t, x) => t + x.busy, 0), sumWin = pdays.reduce((t, x) => t + x.window, 0);
   const perShipDays = ships.map((s) => pdays.filter((x) => x.s === s).length);
   const noBase = ships.filter((s) => !BASE[s]);
@@ -1065,9 +1105,9 @@ function workload({ jobs, a, b, k }) {
 
   <div class="grid" style="margin-top:14px">
     <div class="card panel c12"><div class="ph"><div><h2>A day on the presses</h2><p>Every job on ${gday ? `<b style="color:#fff">${WD[(new Date(gday + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(gday)}</b>` : "—"}, hour by hour. Blue is printing, orange is stalled; gaps are the press standing idle. Tap or hover a block for the job.</p></div>
-      <div class="inav"><button class="btn" id="gPrev" aria-label="Previous day">‹</button><button class="btn" id="gBusy">Busiest day</button><button class="btn" id="gNext" aria-label="Next day">›</button></div></div>
-      <div class="chart" id="chGantt" style="height:${90 + 46 * Math.max(1, ships.length)}px"></div>
-      <div id="gSum" class="legend" style="margin-top:6px"></div></div>
+      <div class="dnav"><button class="btn" id="gPrev" aria-label="Previous day">‹</button><div class="dnav-d">${gday ? `<b>${WD[(new Date(gday + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fdayShort(gday)}</b><small>${gday.slice(0, 4)}${gday === topPrint?.d ? " · busiest" : ""}</small>` : "—"}</div><button class="btn" id="gNext" aria-label="Next day">›</button><button class="btn chipbtn" id="gBusy" title="The day with the most printing">★ Busiest</button></div></div>
+      <div class="chart gantt" id="chGantt" style="height:${90 + 46 * Math.max(1, ships.length)}px;--gh:${50 + 40 * Math.max(1, ships.length)}px"></div>
+      <div id="gSum" class="gsum"></div></div>
 
     <div class="card panel c12"><div class="ph"><div><h2>Every day at a glance</h2><p>One column per day, midnight at the top. Each coloured band is time the press was working — a shift that moves, a late night, a day off all show as a pattern. Click a day to open it above.</p></div>
       ${ships.length > 1 ? `<div class="seg" id="wShip">${ships.map((s) => `<button data-s="${esc(s)}" class="${s === wship ? "on" : ""}"><span class="dot" style="background:${shipColor(s)}"></span>${esc(s)}</button>`).join("")}</div>` : ""}</div>
@@ -1097,7 +1137,7 @@ function workload({ jobs, a, b, k }) {
   $("#gPrev").disabled = di <= 0; $("#gNext").disabled = di < 0 || di >= allDays.length - 1;
   $("#gPrev").onclick = () => set({ gday: allDays[di - 1] });
   $("#gNext").onclick = () => set({ gday: allDays[di + 1] });
-  $("#gBusy").onclick = () => set({ gday: top?.d });
+  $("#gBusy").onclick = () => set({ gday: topPrint?.d });
   const d0 = Date.parse(gday + "T00:00:00Z");
   const blocks = [];
   for (const j of jobs) {
@@ -1109,17 +1149,22 @@ function workload({ jobs, a, b, k }) {
     const seg = (x, y, kind) => { const A = Math.max(x, d0), B = Math.min(y, d0 + 86400000); if (B > A) blocks.push({ value: [row, (A - d0) / 3600000, (B - d0) / 3600000], kind, j }); };
     seg(st, pEnd, "print"); if (j.stallS > 0) seg(pEnd, en, "stall");
   }
-  const H = 22;
+  const phone = matchMedia("(max-width: 700px)").matches;
+  const H = phone ? 16 : 22;
   chart("chGantt", {
-    grid: { left: 80, right: 16, top: 10, bottom: 30 },
+    grid: { left: phone ? 62 : 80, right: phone ? 10 : 16, top: 10, bottom: 26 },
     tooltip: { formatter: (p) => { const j = p.data.j; return `<b>${esc(j.file || "(no file name)")}</b><br>${esc(j.ship)} · ${esc(j.dept)} · ${esc(j.cat)}<br>${new Date(j.startMs).toISOString().slice(11, 16)} → ${j.endTs.slice(11, 16)} · ${dur(j.runS)} · ${n0(j.feed)} sheets${j.stallS >= STALL_JOB_S ? `<br><span style="color:${C.stall}">stalled ${dur(j.stallS)} past normal (${dur(j.expS)})</span>` : ""}`; } },
-    xAxis: axis({ type: "value", min: 0, max: 24, interval: 2, axisLabel: { color: C.ink3, fontSize: 11, formatter: (v) => `${String(v).padStart(2, "0")}:00` } }),
-    yAxis: axis({ type: "category", data: ships, inverse: true, axisLine: { show: false }, splitLine: { show: false }, axisLabel: { color: C.ink2, fontSize: 12.5 } }),
+    xAxis: axis({ type: "value", min: 0, max: 24, interval: phone ? 6 : 2, axisLabel: { color: C.ink3, fontSize: 11, formatter: (v) => phone ? String(v).padStart(2, "0") : `${String(v).padStart(2, "0")}:00` } }),
+    yAxis: axis({ type: "category", data: ships, inverse: true, axisLine: { show: false }, splitLine: { show: false }, axisLabel: { color: C.ink2, fontSize: phone ? 12 : 12.5 } }),
     series: [{ type: "custom", progressive: 0, data: blocks, encode: { x: [1, 2], y: 0 },
       renderItem: (params, api) => { const s0 = api.coord([api.value(1), api.value(0)]), s1 = api.coord([api.value(2), api.value(0)]); const kind = blocks[params.dataIndex].kind;
         return { type: "rect", shape: { x: s0[0], y: s0[1] - H / 2, width: Math.max(1.5, s1[0] - s0[0]), height: H, r: 3 }, style: { fill: kind === "print" ? C.print : C.stall, stroke: css("--card"), lineWidth: 1 } }; } }],
   });
-  $("#gSum").innerHTML = ships.map((s) => { const p = prof[s][gday]; return `<span><i class="dot" style="background:${shipColor(s)}"></i><b style="color:#fff">${esc(s)}</b>&nbsp;${whereLine(s, gday)}&nbsp;${p ? `${clock(p.first)}→${clock(p.last)} · <b style="color:#fff">${dur(p.busy)}</b><span class="m-hide"> worked of a ${dur(p.window)} window</span>${p.stall >= 60 && BASE[s] ? ` · <span style="color:${C.stall}">${dur(p.stall)} stalled</span>` : ""}` : "no jobs"}</span>`; }).join("");
+  const hm = (sec) => { const m = Math.round(sec / 60); return m < 1 ? "<1m" : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
+  $("#gSum").innerHTML = ships.map((s) => { const p = prof[s][gday]; const w = whereOf(s, gday); const st = p && p.stall >= 60 && BASE[s] ? p.stall : 0;
+    return `<div class="gs${p ? "" : " off"}"><div class="gs-a"><i class="dot" style="background:${shipColor(s)}"></i><b>${esc(s)}</b><span class="gs-t">${p ? `${clock(p.first)}–${clock(p.last)}` : "no printing"}</span></div>
+      <div class="gs-h">${p ? hm(p.busy - st) : "–"}${st ? `<em>+${hm(st)} stalled</em>` : ""}</div>
+      <div class="gs-w${w?.est ? " est" : ""}">${w ? `⚓ <span>${esc(w.place)}</span> · ${w.off}${w.est ? " · est." : ""}` : "press clock · UTC−5"}</div></div>`; }).join("");
   const ws = $("#wShip"); if (ws) ws.onclick = (e) => { const bt = e.target.closest("button"); if (bt) set({ wship: bt.dataset.s }); };
 
   // ---- actogram: one column per day, 00 at top
@@ -1166,23 +1211,26 @@ function workload({ jobs, a, b, k }) {
   const nPress = Math.max(1, ships.length);
   const data = []; let vmax = 0;
   for (let wd = 0; wd < 7; wd++) for (let h = 0; h < 24; h++) { const v = (k.b.heat[`${wd}|${h}`] || 0) / 60 / Math.max(1, wdCount[wd]) / nPress; vmax = Math.max(vmax, v); data.push([h, wd, +v.toFixed(1)]); }
+  const phoneH = matchMedia("(max-width: 700px)").matches;
   chart("chHeat", {
-    grid: { left: 44, right: 16, top: 6, bottom: 56 },
+    grid: { left: phoneH ? 36 : 44, right: phoneH ? 6 : 16, top: 6, bottom: 56 },
     tooltip: { formatter: (p) => `<b>${WD[p.value[1]]} ${hh(p.value[0])}–${hh((p.value[0] + 1) % 24)}</b><br>${Math.round(p.value[2])} min busy on average` },
-    xAxis: { type: "category", data: [...Array(24).keys()].map((h) => String(h).padStart(2, "0")), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: C.ink3, fontSize: 11 } },
+    xAxis: { type: "category", data: [...Array(24).keys()].map((h) => String(h).padStart(2, "0")), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: C.ink3, fontSize: 11, interval: phoneH ? 5 : 0 } },
     yAxis: { type: "category", data: WD, inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: C.ink2, fontSize: 11.5 } },
     visualMap: { min: 0, max: Math.max(1, Math.ceil(vmax)), orient: "horizontal", left: "center", bottom: 4, itemHeight: 180, itemWidth: 10, text: [`${Math.ceil(vmax)} min`, "0"], textStyle: { color: C.ink3, fontSize: 11 }, inRange: { color: RAMP } },
-    series: [{ type: "heatmap", data, itemStyle: { borderColor: css("--card"), borderWidth: 2, borderRadius: 4 } }],
+    series: [{ type: "heatmap", data, itemStyle: { borderColor: css("--card"), borderWidth: phoneH ? 1 : 2, borderRadius: phoneH ? 2 : 4 } }],
   }, (p) => set({ wd: String(p.value[1]), hour: String(p.value[0]), tab: "jobs" }));
 
   // ---- busiest days
-  const topDays = pdays.slice().sort((x, y) => y.busy - x.busy).slice(0, 40);
-  const maxS = topDays[0]?.busy || 1;
+  // busiest = most printing; stalled time shows in orange but does not make a day "busy"
+  const printOf = (r) => r.busy - (r.stall && BASE[r.s] ? r.stall : 0);
+  const topDays = pdays.slice().sort((x, y) => printOf(y) - printOf(x)).slice(0, 40);
+  const maxS = Math.max(1, ...topDays.map((r) => r.busy));
   $("#tDays").innerHTML = `<thead><tr><th>Day</th><th>Ship</th><th class="num">Worked</th><th></th><th class="num">of it stalled</th><th class="num">Start → finish</th><th class="num">Jobs</th><th>Most time went to</th></tr></thead><tbody>${topDays.map((r) => {
     const js = jobs.filter((j) => j.day === r.d && j.ship === r.s); const main = groupBy(js, (j) => j.cat, (j) => j.runS || 0)[0];
     return `<tr class="click" data-d="${r.d}"><td>${WD[(new Date(r.d + "T00:00:00Z").getUTCDay() + 6) % 7]} ${fday(r.d)}</td><td><span class="dot" style="background:${shipColor(r.s)}"></span> ${esc(r.s)}</td><td class="num"><b style="color:#fff">${dur(r.busy)}</b></td><td style="width:14%"><div class="meter"><i style="width:${(100 * r.busy) / maxS}%"></i></div></td><td class="num">${r.stall >= 60 && BASE[r.s] ? `<span class="pill stall">${dur(r.stall)}</span>` : "—"}</td><td class="num">${clock(r.first)} → ${clock(r.last)}</td><td class="num">${n0(js.length)}</td><td>${esc(main?.[0] || "—")}</td></tr>`; }).join("")}</tbody>`;
   $$("#tDays tr.click").forEach((tr) => (tr.onclick = () => { set({ gday: tr.dataset.d }); scrollTo({ top: 0, behavior: "smooth" }); }));
-  $("#mDays").innerHTML = topDays.slice(0, 12).map((r) => `<button class="drow" data-d="${r.d}"><span class="dd-d"><b>${WD[(new Date(r.d + "T00:00:00Z").getUTCDay() + 6) % 7]}</b>${fdayShort(r.d)}</span><span class="dd-s"><i class="dot" style="background:${shipColor(r.s)}"></i>${esc(r.s)}</span><span class="dd-bar"><i style="width:${(100 * r.busy) / maxS}%"><b style="width:${r.busy ? (100 * Math.max(0, r.stall || 0)) / r.busy : 0}%"></b></i></span><span class="dd-h">${Math.round(r.busy / 3600)}h</span></button>`).join("");
+  $("#mDays").innerHTML = topDays.slice(0, 12).map((r) => `<button class="drow" data-d="${r.d}"><span class="dd-d"><b>${WD[(new Date(r.d + "T00:00:00Z").getUTCDay() + 6) % 7]}</b>${fdayShort(r.d)}</span><span class="dd-s"><i class="dot" style="background:${shipColor(r.s)}"></i>${esc(r.s)}</span><span class="dd-bar"><i style="width:${(100 * r.busy) / maxS}%"><b style="width:${r.busy ? (100 * Math.max(0, r.stall || 0)) / r.busy : 0}%"></b></i></span><span class="dd-h">${(printOf(r) / 3600).toFixed(printOf(r) < 36000 ? 1 : 0)}h</span></button>`).join("");
   $$("#mDays .drow").forEach((b) => (b.onclick = () => { set({ gday: b.dataset.d }); scrollTo({ top: 0, behavior: "smooth" }); }));
 }
 
