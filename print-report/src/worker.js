@@ -25,7 +25,7 @@ import { sendReminder } from "./remind.js";
 
 export const REMIND_CRON = "0 13 1 * *";
 
-export const VERSION = "2026-09-24h";
+export const VERSION = "2026-09-24i";
 const CHUNK_MAX = 500;
 const FLEET_SET = new Set(FLEET);
 const TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
@@ -79,6 +79,7 @@ async function startUpload(env, b) {
      VALUES (?,?,?,?,?,?,?,?)`,
   ).bind(id, str(b.fileName) || "(unnamed)", str(b.sheet), b.ship, src,
     str(b.from, 10), str(b.to, 10), new Date().toISOString()).run();
+  await forget(env, null);
   return json({ id });
 }
 
@@ -105,17 +106,23 @@ async function chunk(env, id, b) {
   }
   await env.DB.prepare("UPDATE uploads SET rows_sent = rows_sent + ?, rows_added = rows_added + ? WHERE id = ?")
     .bind(jobs.length, added, id).run();
+  await forget(env, added ? up.ship : null);
   return json({ sent: jobs.length, added, refused });
 }
 
 async function finish(env, id) {
   await env.DB.prepare("UPDATE uploads SET finished_at = COALESCE(finished_at, ?) WHERE id = ?")
     .bind(new Date().toISOString(), id).run();
+  await forget(env, null);
   const row = await env.DB.prepare("SELECT * FROM uploads WHERE id = ?").bind(id).first();
   return row ? json(row) : bad("unknown upload", 404);
 }
 
 async function summary(env) {
+  const body = await kvOr(env, "summary", async () => JSON.stringify(await summaryData(env)), 3600);
+  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+}
+async function summaryData(env) {
   const ships = await env.DB.prepare(
     `SELECT ship, COUNT(*) AS jobs, MIN(substr(end_ts,1,10)) AS day_from, MAX(substr(end_ts,1,10)) AS day_to
      FROM jobs GROUP BY ship ORDER BY ship`,
@@ -124,7 +131,7 @@ async function summary(env) {
     `SELECT id, file_name, sheet, ship, ship_source, rows_sent, rows_added, day_from, day_to, started_at, finished_at
      FROM uploads ORDER BY started_at DESC LIMIT 30`,
   ).all();
-  return json({ ships: ships.results, uploads: uploads.results });
+  return { ships: ships.results, uploads: uploads.results };
 }
 
 // Columnar with string dictionaries: ~40% of the plain-JSON size, which is what
@@ -155,31 +162,46 @@ export function columnar(rows) {
   return { cols: COLS, dicts, data, n: rows.length };
 }
 
-// A ship's jobs only change when an upload finishes, so the pack is built once
-// per upload and served from the edge cache after that (a D1 read of ~10,000
-// rows took 2.6–6.2 s per ship on 24 Sep 2026). The browser keeps its copy and
-// revalidates with the ETag: an unchanged ship costs one tiny 304.
-// Jobs are only ever added (INSERT OR IGNORE), so the ship's job count is an
-// exact version: any stored job — even from an upload cut off half-way — moves it.
+// Reads never wait on D1. D1 lives in APAC and the report is read from the
+// Americas: each query crossed the Pacific (summary 1.2 s, each ship's pack
+// 2.6–6.2 s, measured 24 Sep 2026). KV answers from the nearest edge.
+//   v:<ship>             the ship's job count — jobs are only ever added, so
+//                        the count is an exact version
+//   pack:<ship>:<v>:<fmt> the columnar pack for that version
+//   summary              ships on file + upload history
+// Any upload write clears v:<ship> and summary; KV settles worldwide within
+// ~60 s, so a new upload shows in the report within a minute.
+// The browser keeps its copy and revalidates with the ETag: unchanged = 304.
+async function kvOr(env, key, build, ttl) {
+  if (!env.CACHE) return build();
+  const hit = await env.CACHE.get(key);
+  if (hit != null) return hit;
+  const v = await build();
+  await env.CACHE.put(key, v, ttl ? { expirationTtl: ttl } : undefined);
+  return v;
+}
 export async function dataVersion(env, ship) {
-  const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM jobs WHERE ship = ?").bind(ship).first();
-  return String(r?.n || 0);
+  return kvOr(env, `v:${ship}`, async () => {
+    const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM jobs WHERE ship = ?").bind(ship).first();
+    return String(r?.n || 0);
+  }, 86400);
+}
+async function forget(env, ship) {
+  if (!env.CACHE) return;
+  await Promise.all([ship && env.CACHE.delete(`v:${ship}`), env.CACHE.delete("summary")].filter(Boolean));
 }
 async function jobsFor(env, ship, request) {
   if (!FLEET_SET.has(ship)) return bad("unknown ship");
   const v = await dataVersion(env, ship);
   const etag = `"${ship}-${v}-${JOBS_FORMAT}"`;
   const head = { "content-type": "application/json; charset=utf-8", "cache-control": "private, no-cache", etag };
-  if (request?.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: head });
-  const cache = typeof caches !== "undefined" ? caches.default : null;
-  const key = new Request(`https://cims-print.cache/jobs/${encodeURIComponent(ship)}/${v}/${JOBS_FORMAT}`);
-  if (cache) {
-    const hit = await cache.match(key);
-    if (hit) return new Response(hit.body, { status: 200, headers: head });
-  }
-  const res = await env.DB.prepare(`SELECT ${COLS.join(",")} FROM jobs WHERE ship = ? ORDER BY end_ts`).bind(ship).all();
-  const body = JSON.stringify({ ship, ...columnar(res.results) });
-  if (cache) await cache.put(key, new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=2592000" } }));
+  // Cloudflare weakens the tag when it compresses ("W/…"); compare the value
+  const inm = (request?.headers.get("if-none-match") || "").replace(/^W\//, "");
+  if (inm === etag) return new Response(null, { status: 304, headers: head });
+  const body = await kvOr(env, `pack:${ship}:${v}:${JOBS_FORMAT}`, async () => {
+    const res = await env.DB.prepare(`SELECT ${COLS.join(",")} FROM jobs WHERE ship = ? ORDER BY end_ts`).bind(ship).all();
+    return JSON.stringify({ ship, ...columnar(res.results) });
+  }, 30 * 86400);
   return new Response(body, { status: 200, headers: head });
 }
 

@@ -62,6 +62,24 @@ test("jobs carry an ETag; unchanged data is a 304, new jobs change it", async ()
   assert.equal((await r3.json()).n, 2);
 });
 
+test("with the KV cache: a new upload clears the version, the report sees it", async () => {
+  const kv = new Map();
+  const e = { ...env(), CACHE: { get: async (k) => (kv.has(k) ? kv.get(k) : null), put: async (k, v) => void kv.set(k, v), delete: async (k) => void kv.delete(k) } };
+  const id = (await call(e, "/print/api/upload", { ship: "Onward", shipSource: "tab", fileName: "a" })).body.id;
+  await call(e, `/print/api/upload/${id}/chunk`, { jobs: [job(1, "2026-09-01 10:00:00")] });
+  assert.equal((await call(e, "/print/api/jobs?ship=Onward")).body.n, 1);
+  assert.equal(kv.get("v:Onward"), "1");
+  assert.equal((await call(e, "/print/api/summary")).body.ships[0].jobs, 1);
+  assert.ok(kv.has("summary"));
+  await call(e, `/print/api/upload/${id}/chunk`, { jobs: [job(2, "2026-09-02 10:00:00")] });
+  assert.ok(!kv.has("v:Onward") && !kv.has("summary"), "an upload that adds jobs clears the cache");
+  assert.equal((await call(e, "/print/api/jobs?ship=Onward")).body.n, 2);
+  assert.equal((await call(e, "/print/api/summary")).body.ships[0].jobs, 2);
+  // a weak ETag from the edge still revalidates
+  const r = await worker.fetch(new Request("https://hon.cims.work/print/api/jobs?ship=Onward", { headers: { "if-none-match": 'W/"Onward-2-c1"' } }), e);
+  assert.equal(r.status, 304);
+});
+
 test("malformed jobs are refused one by one, not the chunk", () => {
   assert.ok(cleanJob({ jobId: 1, no: 1, endTs: "21/09/2026 10:00" }).error);
   assert.ok(cleanJob({ jobId: 1, no: 1, endTs: "2026-09-21 10:00:00", runS: 90000 }).error);
