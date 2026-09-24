@@ -27,7 +27,7 @@
 
 import { baseline } from "../public/print/lib/metrics.js";
 import { category } from "../public/print/lib/classify.js";
-import { mast } from "./cims-mast.js";
+import { page, card, shortDate } from "./daylight.js";
 
 export const LIMITS = { gapDays: 7, driftPts: 10, driftMin: 200, unfinishedHours: 2 };
 
@@ -173,27 +173,42 @@ export async function gather(env, now = new Date()) {
   return { today, ships, invariants, daysByShip, unfinished, baselines, drift, collisions, assets };
 }
 
-export function alertEmail(items, result, origin = "https://hon.cims.work") {
+const WORD = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+const word = (n) => WORD[n] || String(n);
+
+// Daylight layout (cims-email-standard §9): the headline says the answer, one card per problem.
+export function alertEmail(items, result, origin = "https://hon.cims.work", now = new Date()) {
   const fails = items.filter((c) => c.status === "fail").length;
   const subject = `Print report · something is wrong · ${items[0].title}`.slice(0, 160);
-  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-  const color = { fail: "#96281B", warn: "#B7791F" };
   const label = { fail: "PROBLEM", warn: "NEW" };
-  const rows = items.map((c) => `<tr><td style="padding:10px 0;border-top:1px solid #E5E7EB;font-family:Helvetica,Arial,sans-serif;">
-    <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;color:${color[c.status]};">${label[c.status]}</div>
-    <div style="font-size:15px;font-weight:600;color:#1B3A5C;margin-top:2px;">${esc(c.title)}</div>
-    ${c.detail ? `<div style="font-size:13px;color:#374151;margin-top:3px;line-height:1.45;">${esc(c.detail)}</div>` : ""}</td></tr>`).join("");
-  const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F4F6" style="background:#F3F4F6;"><tr><td align="center" style="padding:16px;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;max-width:600px;width:100%;">
-  <tr><td style="padding:0;">${mast()}</td></tr>
-  <tr><td style="padding:22px 24px 6px;font-family:Helvetica,Arial,sans-serif;">
-    <div style="font-size:18px;font-weight:700;color:#1B3A5C;">Print report — night watch</div>
-    <div style="font-size:13px;color:#6B7280;margin-top:4px;">The nightly self-check found ${fails === 1 ? "a problem" : `${fails} problems`}. You get this email only when something is wrong; if it is still wrong in 7 days you will hear once more.</div>
-  </td></tr>
-  <tr><td style="padding:6px 24px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table></td></tr>
-  <tr><td style="padding:10px 24px 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6B7280;">
-    Report: ${origin}/print/report<br>All checks, latest run: ${origin}/print/api/watch</td></tr>
-  </table></td></tr></table>`;
+  const checks = (result && Array.isArray(result.checks)) ? result.checks : items;
+  const n = (st) => checks.filter((c) => c.status === st).length;
+  const failN = n("fail"), warnN = n("warn"), okN = n("ok");
+  const headline = [
+    `${word(fails)} ${fails === 1 ? "problem" : "problems"} in the print report.`,
+    warnN ? `${word(warnN)} more to watch.` : "Everything else passed.",
+  ];
+  const cards = items.map((c, i) => card({
+    title: c.title,
+    pill: c.status === "fail" ? "Problem" : "New",
+    tone: c.status === "fail" ? "red" : "amber",
+    note: c.detail,
+    first: i === 0,
+  })).join("");
+  const html = page({
+    preheader: `${headline[0]} ${items[0].title}`,
+    eyebrow: "PRINT REPORT · NIGHT WATCH",
+    date: shortDate(now),
+    headline,
+    lead: "You get this email only when something is wrong. If it is still wrong in 7 days you will hear once more.",
+    stats: [
+      { n: failN, label: "Problems", tone: "red" },
+      { n: warnN, label: "To watch", tone: "amber" },
+      { n: okN, label: "Passed", tone: "green" },
+    ],
+    body: cards,
+    footer: [`Report: ${origin}/print/report`, `All checks, latest run: ${origin}/print/api/watch`, "Sent by the nightly self-check at 06:15 UTC."],
+  });
   const text = [`Print report — night watch`, "", ...items.map((c) => `[${label[c.status]}] ${c.title}${c.detail ? `\n   ${c.detail}` : ""}`), "", `Report: ${origin}/print/report`, `All checks: ${origin}/print/api/watch`].join("\n");
   return { subject, html, text };
 }
@@ -211,7 +226,7 @@ export async function runWatch(env, { trigger = "manual", email = trigger === "c
   if (email && items.length && env.MAILER) {
     const to = String(env.WATCH_ALERT_TO || "").split(",").map((s) => s.trim()).filter(Boolean);
     if (to.length) {
-      const m = alertEmail(items, result);
+      const m = alertEmail(items, result, undefined, now);
       const res = await env.MAILER.fetch("https://mailer/send", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({

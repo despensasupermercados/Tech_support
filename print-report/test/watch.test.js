@@ -63,6 +63,25 @@ test("the alert email carries the one letterhead and no rgba or gradient", () =>
   assert.match(m.text, /\[PROBLEM\] Page not served/);
 });
 
+test("the alert email uses the Daylight layout: headline answer, stat strip, one card per problem", () => {
+  const items = [
+    { id: "a", status: "fail", title: "Page not served: /print/", detail: "HTTP 500" },
+    { id: "b", status: "fail", title: "The record has impossible rows", detail: "3 <jobs> that start after they end" },
+  ];
+  const result = { checks: [...items, { id: "w", status: "warn", title: "gap" }, { id: "o", status: "ok", title: "fine" }, { id: "o2", status: "ok", title: "fine" }] };
+  const m = alertEmail(items, result, "https://hon.cims.work", new Date("2026-09-24T06:15:00Z"));
+  assert.match(m.html, /Two problems in the print report\./);
+  assert.match(m.html, /One more to watch\./);
+  assert.match(m.html, /Thu 24 Sep/);
+  assert.equal((m.html.match(/>Problem</g) || []).length, 2);
+  assert.match(m.html, /&lt;jobs&gt;/);            // crew/detail text is escaped
+  assert.match(m.html, /name="viewport"/);
+  assert.doesNotMatch(m.html, /rgba\(|linear-gradient/);
+  const one = alertEmail([items[0]], { checks: [items[0]] });
+  assert.match(one.html, /One problem in the print report\./);
+  assert.match(one.html, /Everything else passed\./);
+});
+
 test("cims-mast.js is byte-identical to the estate letterhead", () => {
   const buf = readFileSync(new URL("../src/cims-mast.js", import.meta.url));
   const sha = createHash("sha1").update(`blob ${buf.length}\0`).update(buf).digest("hex");
