@@ -50,6 +50,17 @@ input[type=checkbox] { accent-color: var(--brand); width: 15px; height: 15px; }
 .scope { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); padding: 0 0 10px; }
 .scope .lab { font-family: var(--mono); font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-3); }
 .scope b { color: #fff; font-weight: 600; }
+.showmore { display: block; width: 100%; margin-top: 8px; height: 42px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--card); color: #cfe2fa; font: inherit; font-weight: 600; font-size: 13.5px; cursor: pointer; }
+.mr-bar i.cx { background: var(--critical); }
+.stack { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 6px 0 5px; gap: 1px; }
+.stack i { display: block; min-width: 2px; }
+.mxk { display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: 11.5px; color: var(--ink-2); }
+.mxk span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.mxk b { color: #fff; font-weight: 600; }
+.mk { font-size: 11.5px; color: var(--ink-3); margin: 0 0 6px; }
+.kpi .d.dl.down { color: #f2b8a8; } .kpi .d.dl.up { color: #a9dcb0; }
+.monthrow { display: flex; align-items: center; gap: 8px; }
+.monthrow .months { flex: 1; min-width: 0; }
 .months { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 10px; }
 .months::-webkit-scrollbar { display: none; }
 .months button { flex: 0 0 auto; position: relative; font: inherit; font-size: 13px; font-weight: 600; min-width: 52px; height: 34px; padding: 0 12px; border-radius: 999px; background: var(--card); color: var(--ink-2); border: 1px solid var(--line-2); cursor: pointer; }
@@ -250,7 +261,10 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
   .frow { gap: 8px; padding: 8px 0; }
   #fShip { flex-wrap: nowrap; overflow-x: auto; width: 100%; max-width: 100%; scrollbar-width: none; }
   #fShip button { flex: 1 1 auto; padding: 0 8px; font-size: 12.5px; }
-  #fBtn { margin-left: auto; }
+  #fBtn { margin-left: 0; flex: none; height: 34px; padding: 0 10px; font-size: 13px; }
+  .kpi .d.dl { display: block !important; font-size: 11.5px; margin-top: 3px; }
+  .scope .lab { display: none; }
+  .scope { gap: 4px 6px; }
   .ph .seg { display: flex; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .ph .seg button { flex: 1 1 auto; padding: 0 8px; white-space: nowrap; }
   #fShip::-webkit-scrollbar { display: none; }
@@ -358,7 +372,7 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rg
       <label class="toggle" id="fMoney" title="Billed value at the 2026 Azamara rate card"><i></i>$ value</label>
       </div>
     </div>
-    <div class="months" id="fMonths" role="group" aria-label="Month"></div>
+    <div class="monthrow"><div class="months" id="fMonths" role="group" aria-label="Month"></div></div>
     <div class="scope" id="scope"></div>
     <div class="active" id="active"></div>
   </div>
@@ -392,6 +406,7 @@ const WD = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const fday = (iso) => { if (!iso) return "—"; const [y, m, d] = iso.split("-"); return `${+d} ${MON[+m - 1]} ${y}`; };
 const fdayShort = (iso) => { const [, m, d] = iso.split("-"); return `${+d} ${MON[+m - 1]}`; };
 const hh = (h) => String(h).padStart(2, "0") + ":00";
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const MON3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1;
@@ -588,6 +603,17 @@ function busy(jobs) {
   return out;
 }
 
+// The typical press-day — median over ship-days with printing — the same number
+// on Overview, Working hours and Stalls (it used to be a mean on one tab, a
+// median on another, and a fleet total on a third).
+function typicalDay(jobs) {
+  const busyV = [], stallV = [];
+  for (const s of new Set(jobs.map((j) => j.ship))) for (const v of Object.values(dayProfiles(jobs.filter((j) => j.ship === s), BASE[s]))) { busyV.push(v.busy); if (BASE[s]) stallV.push(v.stall || 0); }
+  const q = (a) => (a.length ? quantile(a.sort((x, y) => x - y), 0.5) : null);
+  return { busy: q(busyV), stall: q(stallV), n: busyV.length };
+}
+// "3 h 44 min" → "3<small>h</small> 44<small>min</small>" for a tile
+const durTile = (sec) => (sec == null ? "—" : dur(sec).replace(/ (h|min|s)\b/g, "<small>$1</small>"));
 function kpis(jobs) {
   const b = busy(jobs);
   const done = jobs.filter((j) => j.result === "Complete");
@@ -620,10 +646,22 @@ function groupBy(jobs, keyFn, valFn) {
 }
 
 // ---------------------------------------------------------------- charts
+const PHONE = () => matchMedia("(max-width: 700px)").matches;
+// top n rows + "All others" (summed), so a phone never scrolls a 20-row bar list
+function capRows(rows, n) { if (rows.length <= n) return rows; return [...rows.slice(0, n - 1), ["All others", rows.slice(n - 1).reduce((t, r) => t + r[1], 0)]]; }
+// compact duration for lists: 45s · 3m · 1h 05m
+const hmS = (sec) => { if (sec == null) return "—"; if (sec < 60) return `${Math.round(sec)}s`; const m = Math.round(sec / 60); return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
+// long phone lists: first 12, then one tap for the rest
+function capList(el, n = 12) {
+  if (!el) return; const kids = [...el.children]; if (kids.length <= n) return;
+  kids.slice(n).forEach((c) => (c.hidden = true));
+  const b = document.createElement("button"); b.className = "showmore"; b.textContent = `Show ${kids.length - n} more`;
+  b.onclick = () => { kids.forEach((c) => (c.hidden = false)); b.remove(); }; el.appendChild(b);
+}
 const charts = new Map();
 // Charts read along a time axis: on a phone they keep a readable width and swipe.
 const DAYWISE = new Set(["chActo", "chDayHrs", "chDaily"]);
-const WIDE = new Set(["chActo", "chDayHrs", "chMx", "chShip", "chDaily", "chStH", "chWs"]);
+const WIDE = new Set(["chMx"]);
 function chart(id, option, onClick) {
   const el = document.getElementById(id); if (!el) return;
   // day-by-day charts fit the screen when the view is a month or less
@@ -666,6 +704,7 @@ function buildControls() {
   $("#fColor").onchange = (e) => set({ color: e.target.value });
   $("#fResult").onchange = (e) => set({ result: e.target.value });
   let qt; $("#fQ").oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => set({ q: e.target.value.trim() }), 250); };
+  $(".monthrow").appendChild($("#fBtn"));
   $("#fBtn").onclick = () => { const m = $("#fmore"); const o = m.classList.toggle("open"); $("#fBtn").setAttribute("aria-expanded", o); };
   $("#fMoney").onclick = () => set({ money: !S.money, metric: S.money && S.metric === "value" ? "hours" : S.metric });
   multi("#ddDept", "depts", () => groupBy(ALL, (j) => j.dept, () => 1).map(([k, n]) => [k, n]));
@@ -720,9 +759,11 @@ function syncControls() {
   const [pa, pb] = periodRange();
   const nShips = S.ships.length || SHIPS.length;
   const narrowed = S.ships.length && S.ships.length < SHIPS.length;
-  const dates = S.tab === "insights" ? "period set below" : `${fday(pa)} – ${fday(pb)}`;
+  const insKey = S.ik || latestKey(S.ig);
+  const dates = S.tab === "insights" ? (S.ig === "month" ? `${MONTH_NAMES[+insKey.slice(5, 7) - 1]} ${insKey.slice(0, 4)}` : S.ig === "year" ? insKey : `${fday(pRange(insKey, S.ig)[0])}${S.ig === "day" ? "" : ` – ${fday(pRange(insKey, S.ig)[1])}`}`)
+    : /^\d{4}-\d{2}$/.test(S.period) ? `${MONTH_NAMES[+S.period.slice(5, 7) - 1]} ${S.period.slice(0, 4)}${pb < pRange(S.period, "month")[1] ? ` <span class="muted">to ${fdayShort(pb)}</span>` : ""}` : `${fday(pa)} – ${fday(pb)}`;
   $("#scope").className = "scope" + (narrowed || chips.length || S.period !== "all" ? " narrow" : "");
-  $("#scope").innerHTML = `<span class="lab">Showing</span> <b>${narrowed ? `${S.ships.join(" + ")} — ${S.ships.length} of ${SHIPS.length} ships` : `all ${SHIPS.length} ships`}</b> · <b>${dates}</b>${chips.length ? ` · ${chips.length} more filter${chips.length > 1 ? "s" : ""}` : ""}${narrowed ? ` <button class="linkbtn" id="allShips">Show all ${SHIPS.length} ships</button>` : ""}<span class="clk" role="group" aria-label="Clock"><button data-c="ship" class="${S.clk !== "press" ? "on" : ""}" title="Each job in the time zone of the port the ship was at that day">⚓ Ship time</button><button data-c="press" class="${S.clk === "press" ? "on" : ""}" title="The press's own clock: fixed UTC−5 (Miami winter time) on every ship">Press clock</button></span>`;
+  $("#scope").innerHTML = `<span class="lab">Showing</span> <b>${narrowed ? `${S.ships.join(" + ")} — ${S.ships.length} of ${SHIPS.length} ships` : `all ${SHIPS.length} ships`}</b> · <b>${dates}</b>${chips.length ? ` · ${chips.length} more filter${chips.length > 1 ? "s" : ""}` : ""}${narrowed ? ` <button class="linkbtn" id="allShips">Show all ${SHIPS.length} ships</button>` : ""}<span class="clk" role="group" aria-label="Clock"><button data-c="ship" class="${S.clk !== "press" ? "on" : ""}" title="Each job in the time zone of the port the ship was at that day">⚓ Ship<span class="d-inl"> time</span></button><button data-c="press" class="${S.clk === "press" ? "on" : ""}" title="The press's own clock: fixed UTC−5 (Miami winter time) on every ship">Press<span class="d-inl"> clock</span></button></span>`;
   const as = $("#allShips"); if (as) as.onclick = () => set({ ships: [] });
   $$("#scope .clk button").forEach((b) => (b.onclick = () => set({ clk: b.dataset.c })));
   const onIns = S.tab === "insights";
@@ -739,10 +780,17 @@ function syncControls() {
 const docNames = new Map();
 function buildDocNames() {
   const files = new Map();
-  for (const j of ALL) { let m = files.get(j.key); if (!m) files.set(j.key, (m = new Map())); const f = j.file || "(no file name)"; m.set(f, (m.get(f) || 0) + 1); }
+  const shipsOf = new Map();
+  for (const j of ALL) { let m = files.get(j.key); if (!m) files.set(j.key, (m = new Map())); const f = j.file || "(no file name)"; m.set(f, (m.get(f) || 0) + 1);
+    let sm = shipsOf.get(j.key); if (!sm) shipsOf.set(j.key, (sm = new Map())); sm.set(j.ship, (sm.get(j.ship) || 0) + 1); }
+  const CODE = { pr: "Pursuit", jr: "Journey", on: "Onward", qs: "Quest", qt: "Quest" };
   for (const [key, m] of files) {
     const top = [...m.entries()].sort((a, b) => b[1] - a[1]);
-    const title = key.replace(/\b\w/g, (c) => c.toUpperCase());
+    let title = key.replace(/\b\w/g, (c) => c.toUpperCase());
+    // "booklet pr" = the Pursuit booklet (PR260327 style codes); only if Pursuit printed most of it
+    const code = key.match(/^(.+\S)\s+(pr|jr|on|qs|qt)$/);
+    const main = [...(shipsOf.get(key) || new Map()).entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (code && CODE[code[2]] === main) title = `${code[1].replace(/\b\w/g, (c) => c.toUpperCase())} (${main})`;
     docNames.set(key, top.length > 2 ? `${title} · all editions` : top[0][0]);
   }
 }
@@ -785,7 +833,7 @@ function prevDelta(curVal, fn) {
   if (!prev) return `<div class="d">${vs}: none</div>`;
   const perDay = pn !== n; if (perDay) prev = (prev * n) / pn;
   const ch = Math.round((100 * (curVal - prev)) / prev);
-  return `<div class="d">${ch > 0 ? "▲" : ch < 0 ? "▼" : "="} ${Math.abs(ch)}% vs ${vs}${perDay ? ", per day" : ""}</div>`;
+  return `<div class="d dl ${ch > 0 ? "up" : ch < 0 ? "down" : ""}">${ch > 0 ? "▲" : ch < 0 ? "▼" : "="} ${Math.abs(ch)}% vs ${vs}${perDay ? ", per day" : ""}</div>`;
 }
 
 // ---- Insights: one period at a time, any grain, any slice
@@ -941,7 +989,7 @@ function shortLabel(k, g) {
 function overview({ jobs, a, b, k }) {
   const days = daysBetween(a, b);
   const nShips = new Set(jobs.map((j) => j.ship)).size;
-  const perDay = k.b.busyS / 3600 / Math.max(1, k.activeDays) / Math.max(1, nShips);
+  const typ = typicalDay(jobs);
   const stallPct = pct(k.b.stallS, k.b.busyS);
   const noBase = k.b.shipsNoBase.length;
   $("#tab").innerHTML = `
@@ -949,7 +997,7 @@ function overview({ jobs, a, b, k }) {
     <div class="card kpi" style="--kc:${C.print}"><div class="v">${hrs(k.b.busyS)}<small>h</small></div><div class="l">Press busy (machine time)</div>${prevDelta(k.b.busyS, (p) => p.b.busyS)}</div>
     <div class="card kpi" style="--kc:${C.stall}"><div class="v">${noBase ? "—" : stallPct}<small>${noBase ? "" : "%"}</small></div><div class="l">of it stalled · ${hrs(k.b.stallS)} h</div>
       <div class="splitbar"><i style="flex:${k.b.printS}"></i><i style="flex:${Math.max(0, k.b.stallS)}"></i></div></div>
-    <div class="card kpi"><div class="v">${perDay >= 2 ? `${n0(perDay)}<small>h</small>` : `${Math.round(perDay * 60)}<small>min</small>`}</div><div class="l">busy per press, per working day</div><div class="d">${n0(k.activeDays)} days with printing</div></div>
+    <div class="card kpi"><div class="v">${durTile(typ.busy)}</div><div class="l">worked per press, on a typical day</div><div class="d">${n0(k.activeDays)} days with printing</div></div>
     <div class="card kpi"><div class="v">${n0(k.done)}</div><div class="l">Jobs printed</div>${prevDelta(k.done, (p) => p.done)}</div>
     <div class="card kpi"><div class="v">${n0(k.sheets)}</div><div class="l">Sheets fed</div>${prevDelta(k.sheets, (p) => p.sheets)}${paperLine(jobs)}</div>
     ${S.money
@@ -1002,15 +1050,16 @@ function paperLine(jobs) {
 }
 
 function hbar(id, rows, onPick, max = 14) {
+  if (PHONE()) max = Math.min(max, 9);
   let data = rows;
   if (rows.length > max) { const rest = rows.slice(max - 1).reduce((s, r) => s + r[1], 0); data = [...rows.slice(0, max - 1), ["All others", rest]]; }
   data = data.slice().reverse();
   const m = metric(); const total = rows.reduce((s, r) => s + r[1], 0);
   chart(id, {
-    grid: { left: 8, right: 70, top: 6, bottom: 6, containLabel: true },
+    grid: { left: PHONE() ? 2 : 8, right: 70, top: 6, bottom: 6, containLabel: true },
     tooltip: { trigger: "item", formatter: (p) => `<b>${esc(p.name)}</b><br>${m.fmt(p.value)} · ${pct(p.value, total)}% of the total` },
     xAxis: axis({ type: "value", show: false }),
-    yAxis: axis({ type: "category", data: data.map((d) => d[0]), axisLine: { show: false }, axisLabel: { color: C.ink2, fontSize: 12, width: 150, overflow: "truncate" } }),
+    yAxis: axis({ type: "category", data: data.map((d) => d[0]), axisLine: { show: false }, axisLabel: { color: C.ink2, fontSize: 12, width: PHONE() ? 118 : 150, overflow: "truncate" } }),
     series: [{ type: "bar", data: data.map((d) => ({ value: d[1], itemStyle: { color: d[0] === "All others" || d[0] === "Other" ? C.line2 : C.print } })), barMaxWidth: 16, itemStyle: { borderRadius: [0, 4, 4, 0] },
       label: { show: true, position: "right", color: C.ink2, fontSize: 11.5, formatter: (p) => m.fmt(p.value) } }],
   }, (p) => { if (p.name !== "All others") onPick(p.name); });
@@ -1240,12 +1289,12 @@ function printed({ jobs }) {
   $("#tab").innerHTML = `
   <div class="grid">
     <div class="card panel c5"><div class="ph"><div><h2>Document types</h2><p>Click a bar to filter.</p></div>${metricSeg("mCat2")}</div><div class="chart tall" id="chCat2"></div></div>
-    <div class="card panel c7"><div class="ph"><div><h2>How long each type takes</h2><p>Completed jobs. The box is the middle half of jobs, the line inside is the typical job, the whiskers reach the shortest and longest 5%.</p></div></div><div class="chart tall" id="chBox"></div></div>
+    <div class="card panel c7"><div class="ph"><div><h2>How long each type takes</h2><p>Completed jobs. The box is the middle half of jobs, the line inside is the typical job, the whiskers reach the shortest and longest 5%.</p></div></div><div class="chart tall d-only" id="chBox"></div><div class="m-only" id="mBox"></div></div>
     <div class="card panel c12"><div class="ph"><div><h2>Documents that repeat</h2><p>Dated editions of the same document are folded together ("DAY 10 … SEP 22" and "DAY 11 … SEP 23" are one). Click a row to filter everything to that document.</p></div>
       <input class="ctl" id="docQ" placeholder="Find a document…" style="min-width:220px"></div>
       <div class="m-only" id="mDocs"></div>
       <div class="tbl-wrap d-only" style="max-height:600px"><table class="t" id="tDocs"></table></div></div>
-    <div class="card panel c12"><div class="ph"><div><h2>Who prints what</h2><p>${metric().label} by department and document type.</p></div>${metricSeg("mMx")}</div><div class="chart" id="chMx" style="height:460px"></div></div>
+    <div class="card panel c12"><div class="ph"><div><h2>Who prints what</h2><p>${metric().label} by department and document type.</p></div><span class="d-only">${metricSeg("mMx")}</span></div><div class="d-only"><div class="chart" id="chMx" style="height:460px"></div></div><div class="m-only" id="mMxList"></div></div>
   </div>`;
   ["mCat2", "mMx"].forEach(wireMetric);
   hbar("chCat2", groupBy(jobs, (j) => j.cat, metric().get), (n) => set({ cats: [n] }), 20);
@@ -1262,6 +1311,10 @@ function printed({ jobs }) {
     yAxis: axis({ type: "category", data: cats.map(([c]) => c), inverse: true, axisLine: { show: false }, axisLabel: { color: C.ink2, fontSize: 12 } }),
     series: [{ type: "boxplot", data: box, boxWidth: [6, 14], itemStyle: { color: "rgba(57,135,229,.25)", borderColor: C.print, borderWidth: 1.5 } }],
   }, (p) => set({ cats: [cats[p.dataIndex][0]] }));
+  const topMed = Math.max(1, ...cats.map(([, v]) => quantile(v, 0.5)));
+  $("#mBox").innerHTML = `<div class="mk">typical time for one job</div>` + cats.slice().reverse().map(([c, v]) => { const m2 = quantile(v, 0.5); return `<button class="mrow" data-c="${esc(c)}"><span class="mr-main"><b>${esc(c)}</b><span class="mr-bar"><i style="width:${Math.max(2, (100 * m2) / topMed)}%"></i></span><small>${n0(v.length)} jobs</small></span><span class="mr-big sm">${hmS(m2 * 60)}</span></button>`; }).join("");
+  $$("#mBox .mrow").forEach((b) => (b.onclick = () => set({ cats: [b.dataset.c] })));
+  capList($("#mBox"), 10);
 
   // documents table
   const g = new Map();
@@ -1290,6 +1343,7 @@ function printed({ jobs }) {
     const top = Math.max(1, ...list.slice(0, 40).map((d) => d.n));
     $("#mDocs").innerHTML = list.slice(0, 40).map((d) => `<button class="mrow" data-k="${esc(d.key)}"><span class="mr-main"><b>${esc(d.name)}</b><span class="mr-bar"><i style="width:${(100 * d.n) / top}%"></i></span><small>${esc(d.cat)} · typical ${dur(d.med)}</small></span><span class="mr-big">×${n0(d.n)}</span></button>`).join("");
     $$("#mDocs .mrow").forEach((b) => (b.onclick = () => set({ doc: b.dataset.k })));
+    if (!q) capList($("#mDocs"), 12);
   };
   $("#docQ").oninput = drawDocs; drawDocs();
 
@@ -1308,6 +1362,11 @@ function printed({ jobs }) {
     visualMap: { show: false, min: 0, max: mx || 1, inRange: { color: RAMP.slice(1) } },
     series: [{ type: "heatmap", data: md, itemStyle: { borderColor: css("--card"), borderWidth: 2, borderRadius: 3 } }],
   }, (p) => set({ depts: [depts[p.value[1]]], cats: [catsM[p.value[0]]] }));
+  // phone: each department and the three document types it prints most (machine hours)
+  $("#mMxList").innerHTML = depts.slice(0, 10).map((d) => { const row = catsM.map((c) => [c, cell.get(d + "|" + c) || 0]).filter((x) => x[1] > 0).sort((x, y) => y[1] - x[1]); const tot2 = row.reduce((t, x) => t + x[1], 0) || 1;
+    return `<button class="mrow" data-d="${esc(d)}"><span class="mr-main"><b>${esc(d)}</b><span class="stack">${row.slice(0, 3).map((x, i) => `<i style="flex:${x[1]};background:${SERIES[i]}"></i>`).join("")}<i style="flex:${Math.max(0, tot2 - row.slice(0, 3).reduce((t, x) => t + x[1], 0))};background:var(--line-2)"></i></span><span class="mxk">${row.slice(0, 3).map((x, i) => `<span><i class="dot" style="background:${SERIES[i]}"></i>${esc(x[0])} <b>${pct(x[1], tot2)}%</b></span>`).join("")}</span></span></button>`; }).join("");
+  $$("#mMxList .mrow").forEach((b) => (b.onclick = () => set({ depts: [b.dataset.d] })));
+  capList($("#mMxList"), 6);
 }
 
 // ---- Stalls
@@ -1322,28 +1381,29 @@ function stalls({ jobs, k }) {
     <div class="card kpi"><div class="v">${n0(st.filter((j) => j.stallS >= 3600).length)}</div><div class="l">stalled more than 1 hour</div></div>
     <div class="card kpi"><div class="v">${longest ? dur(longest.stallS).replace(" min", "<small>min</small>") : "—"}</div><div class="l">longest single stall</div><div class="d">${longest ? `${esc(longest.ship)} · ${fday(longest.day)}` : ""}</div></div>
     <div class="card kpi"><div class="v">${hrs(k.b.printS)}<small>h</small></div><div class="l">printing at normal speed</div></div>
-    <div class="card kpi"><div class="v">${n0(k.b.busyS ? (k.b.stallS / 3600) / Math.max(1, k.activeDays) * 60 : 0)}<small>min</small></div><div class="l">stalled per day, on average</div></div>
+    <div class="card kpi"><div class="v">${durTile(typicalDay(jobs).stall)}</div><div class="l">stalled per press, on a typical day</div></div>
   </div>
   <div class="grid" style="margin-top:14px">
     <div class="card panel c6"><div class="ph"><div><h2>Stalled time by department</h2><p>Whose jobs sat on the press. Click to filter.</p></div></div><div class="chart" id="chStD"></div></div>
     <div class="card panel c6"><div class="ph"><div><h2>When stalled jobs were started</h2><p>Hour the job started. Overnight starts point to jobs left running unattended.</p></div></div><div class="chart" id="chStH"></div></div>
     <div class="card panel c12"><div class="ph"><div><h2>Longest stalls</h2><p>Each job against its ship's normal time for that many sheets. Click a row to see that day.</p></div></div>
-      <div class="m-only">${st.slice(0, 30).map((j) => `<button class="mrow st" data-d="${j.day}" data-s="${esc(j.ship)}"><span class="mr-main"><b>${esc(docLabel(j.key))}</b><small><i class="dot" style="background:${shipColor(j.ship)}"></i> ${esc(j.ship)} · ${fdayShort(j.day)}</small>
-        <span class="vsb"><i class="took" style="width:100%"></i><em>${dur(j.runS)}</em></span><span class="vsb"><i style="width:${Math.max(2, (100 * (j.expS || 0)) / j.runS)}%"></i><em>normal ${dur(j.expS)}</em></span></span><span class="mr-big stall">+${dur(j.stallS).replace(" min", "m")}</span></button>`).join("")}</div>
+      <div class="m-only" id="mSt">${st.slice(0, 40).map((j) => `<button class="mrow st" data-d="${j.day}" data-s="${esc(j.ship)}"><span class="mr-main"><b>${esc(docLabel(j.key))}</b><small><i class="dot" style="background:${shipColor(j.ship)}"></i> ${esc(j.ship)} · ${fdayShort(j.day)}</small>
+        <span class="vsb"><i class="took" style="width:100%"></i><em>took ${hmS(j.runS)}</em></span><span class="vsb"><i style="width:${Math.max(2, (100 * (j.expS || 0)) / j.runS)}%"></i><em>normal ${hmS(j.expS)}</em></span></span><span class="mr-big stall">+${hmS(j.stallS)}</span></button>`).join("")}</div>
       <div class="tbl-wrap d-only"><table class="t"><thead><tr><th>Ended</th><th>Ship</th><th>Dept</th><th>Document</th><th class="num">Sheets</th><th class="num">Normal time</th><th class="num">Actual</th><th class="num">Stalled</th><th>Result</th></tr></thead><tbody>
       ${st.slice(0, 150).map((j) => `<tr class="click" data-d="${j.day}" data-s="${esc(j.ship)}"><td>${fday(j.day)} <span class="muted">${j.endTs.slice(11, 16)}</span></td><td>${esc(j.ship)}</td><td>${esc(j.dept)}</td><td class="doc">${esc(j.file || "(no file name)")}<small>${esc(j.cat)}</small></td><td class="num">${n0(j.feed)}</td><td class="num">${dur(j.expS)}</td><td class="num">${dur(j.runS)}</td><td class="num"><span class="pill stall">${dur(j.stallS)}</span></td><td>${j.result === "Complete" ? "Completed" : `<span class="pill cancel">${esc(j.result)}</span>`}</td></tr>`).join("")}
       </tbody></table></div>
       <div class="method"><b>How "stalled" is measured.</b> Each press's normal speed is measured from its own completed jobs: ${bases || "not enough history yet"}. A job may take up to ${TOLERANCE}× its normal time and still count as printing, which covers duplex, heavy stock and a slow file. Time beyond that is stalled: paper out, a jam, or a job left waiting on the press. The log does not say which.</div></div>
   </div>`;
   $$("#tab tr.click, #tab .mrow.st").forEach((tr) => (tr.onclick = () => set({ day: tr.dataset.d, ships: [tr.dataset.s], tab: "jobs" })));
-  const byDept = groupBy(jobs, (j) => j.dept, (j) => (j.stallS || 0) / 3600).filter((r) => r[1] > 0);
+  capList($("#mSt"), 12);
+  const byDept = capRows(groupBy(jobs, (j) => j.dept, (j) => (j.stallS || 0) / 3600).filter((r) => r[1] > 0), PHONE() ? 9 : 14);
   chart("chStD", {
     grid: { left: 8, right: 60, top: 6, bottom: 6, containLabel: true },
     tooltip: { formatter: (p) => `<b>${esc(p.name)}</b><br>${hrs(p.value * 3600)} h stalled` },
     xAxis: axis({ type: "value", show: false }),
     yAxis: axis({ type: "category", data: byDept.map((r) => r[0]).reverse(), axisLine: { show: false }, axisLabel: { color: C.ink2, fontSize: 12 } }),
     series: [{ type: "bar", data: byDept.map((r) => +r[1].toFixed(2)).reverse(), itemStyle: { color: C.stall, borderRadius: [0, 4, 4, 0] }, barMaxWidth: 16, label: { show: true, position: "right", color: C.ink2, fontSize: 11.5, formatter: (p) => `${hrs(p.value * 3600)} h` } }],
-  }, (p) => set({ depts: [p.name] }));
+  }, (p) => { if (p.name !== "All others") set({ depts: [p.name] }); });
   const hours = new Array(24).fill(0); for (const j of st) hours[new Date(j.startMs).getUTCHours()] += j.stallS / 3600;
   chart("chStH", {
     grid: { left: 40, right: 12, top: 14, bottom: 28 },
@@ -1370,17 +1430,18 @@ function cancels({ jobs, k }) {
   <div class="grid" style="margin-top:14px">
     <div class="card panel c6"><div class="ph"><div><h2>Cancelled jobs by department</h2><p>Bar = number cancelled; label = share of that department's jobs.</p></div></div><div class="chart" id="chCx"></div></div>
     <div class="card panel c6"><div class="ph"><div><h2>Waste sheets, week by week</h2><p>Sheets the press counted as waste.</p></div></div><div class="chart" id="chWs"></div></div>
-    <div class="card panel c12"><div class="ph"><div><h2>Documents cancelled most often</h2></div></div><div class="tbl-wrap" style="max-height:420px"><table class="t" id="tCx"></table></div></div>
+    <div class="card panel c12"><div class="ph"><div><h2>Documents cancelled most often</h2></div></div><div class="tbl-wrap d-only" style="max-height:420px"><table class="t" id="tCx"></table></div><div class="m-only" id="mCx"></div></div>
   </div>`;
   const tot = new Map(groupBy(jobs, (j) => j.dept, () => 1));
-  const cx = groupBy(jobs.filter((j) => j.result === "Cancel"), (j) => j.dept, () => 1);
+  const cx = capRows(groupBy(jobs.filter((j) => j.result === "Cancel"), (j) => j.dept, () => 1), PHONE() ? 9 : 14);
+  if (cx.some((r) => r[0] === "All others")) { const named = new Set(cx.map((r) => r[0])); tot.set("All others", [...tot.entries()].filter(([d]) => !named.has(d)).reduce((t, [, n]) => t + n, 0)); }
   chart("chCx", {
     grid: { left: 8, right: 90, top: 6, bottom: 6, containLabel: true },
     tooltip: { formatter: (p) => `<b>${esc(p.name)}</b><br>${n0(p.value)} cancelled of ${n0(tot.get(p.name))} jobs (${pct(p.value, tot.get(p.name))}%)` },
     xAxis: axis({ type: "value", show: false }),
     yAxis: axis({ type: "category", data: cx.map((r) => r[0]).reverse(), axisLine: { show: false }, axisLabel: { color: C.ink2, fontSize: 12 } }),
     series: [{ type: "bar", data: cx.map((r) => r[1]).reverse(), itemStyle: { color: css("--critical"), borderRadius: [0, 4, 4, 0] }, barMaxWidth: 16, label: { show: true, position: "right", color: C.ink2, fontSize: 11.5, formatter: (p) => `${n0(p.value)} · ${pct(p.value, tot.get(p.name))}%` } }],
-  }, (p) => set({ depts: [p.name], result: "Cancel", tab: "jobs" }));
+  }, (p) => { if (p.name !== "All others") set({ depts: [p.name], result: "Cancel", tab: "jobs" }); });
   const [a, b] = periodRange(); const weeks = []; for (let d = weekStart(a); d <= b; d = addDays(d, 7)) weeks.push(d);
   const ws = new Map(groupBy(jobs, (j) => weekStart(j.day), (j) => j.waste));
   chart("chWs", {
@@ -1393,6 +1454,10 @@ function cancels({ jobs, k }) {
   const cd = groupBy(jobs.filter((j) => j.result === "Cancel" && j.key !== "(no file name)"), (j) => j.key, () => 1).slice(0, 60);
   $("#tCx").innerHTML = `<thead><tr><th>Document</th><th class="num">Cancelled</th><th class="num">Printed</th><th class="num">Cancel rate</th></tr></thead><tbody>${cd.map(([key, n]) => { const all = jobs.filter((j) => j.key === key).length; return `<tr class="click" data-k="${esc(key)}"><td class="doc">${esc(docLabel(key))}</td><td class="num"><b style="color:#fff">${n0(n)}</b></td><td class="num">${n0(all - n)}</td><td class="num">${pct(n, all)}%</td></tr>`; }).join("")}</tbody>`;
   $$("#tCx tr.click").forEach((tr) => (tr.onclick = () => set({ doc: tr.dataset.k, tab: "jobs" })));
+  const topCx = Math.max(1, ...cd.map((x) => x[1]));
+  $("#mCx").innerHTML = cd.slice(0, 40).map(([key, n]) => { const all = jobs.filter((j) => j.key === key).length; return `<button class="mrow" data-k="${esc(key)}"><span class="mr-main"><b>${esc(docLabel(key))}</b><span class="mr-bar"><i class="cx" style="width:${(100 * n) / topCx}%"></i></span><small>${pct(n, all)}% of its ${n0(all)} jobs cancelled</small></span><span class="mr-big">×${n0(n)}</span></button>`; }).join("");
+  $$("#mCx .mrow").forEach((b) => (b.onclick = () => set({ doc: b.dataset.k, tab: "jobs" })));
+  capList($("#mCx"), 12);
 }
 
 // ---- Jobs
