@@ -55,6 +55,7 @@ select.ship { height: 38px; border-radius: 10px; border: 1px solid var(--warn); 
 .shipcard b { font-family: var(--display); font-size: 17px; display: block; }
 .shipcard .n { font-family: var(--display); font-size: 26px; font-weight: 600; margin-top: 6px; }
 .shipcard .r { font-size: 12px; color: var(--ink-3); }
+.histh { margin: 22px 0 0; font-size: 13px; font-family: var(--mono); letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
 table.hist { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12.5px; }
 table.hist th { text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-3); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--line); }
 table.hist td { padding: 9px 10px; border-bottom: 1px solid var(--line); color: var(--ink-2); }
@@ -126,6 +127,7 @@ table.hist td.num { text-align: right; font-variant-numeric: tabular-nums; }
   <section class="onfile">
     <h2>On file now</h2>
     <div class="shipgrid" id="ships"><div class="muted">Loading…</div></div>
+    <h3 class="histh" id="histh" hidden>Uploads</h3>
     <div class="scroll"><table class="hist" id="hist" hidden>
       <thead><tr><th>When</th><th>File</th><th>Ship</th><th>Covers</th><th class="num">Sent</th><th class="num">New</th></tr></thead>
       <tbody></tbody></table></div>
@@ -143,6 +145,10 @@ const n0 = (n) => Number(n || 0).toLocaleString("en-US");
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const day = (iso) => { if (!iso) return "—"; const [y, m, d] = iso.split("-"); return `${+d} ${MONTHS[+m - 1]} ${y}`; };
 const range = (a, b) => (a && b ? `${day(a)} – ${day(b)}` : "—");
+// same year → "1 Jan – 21 Sep 2026"
+const rangeS = (a, b) => (a && b ? (a.slice(0, 4) === b.slice(0, 4) ? `${day(a).replace(/ \d{4}$/, "")} – ${day(b)}` : range(a, b)) : "—");
+// "82ed7322-Azamara_Print…xlsx" → "Azamara_Print…xlsx": drop the storage prefix the file picked up on the way
+const cleanName = (n) => String(n || "").replace(/^[0-9a-f]{6,}[-_]/i, "");
 
 let parsed = null; let fileName = "";
 const CHUNK = 500, TIMEOUT = 25000;
@@ -277,11 +283,11 @@ async function loadOnFile() {
   try {
     const r = await fetch("api/summary"); const d = await r.json();
     $("#ships").innerHTML = d.ships.length
-      ? d.ships.map((s) => `<div class="card shipcard"><b>${esc(s.ship)}</b><div class="n">${n0(s.jobs)}</div><div class="r">jobs · ${range(s.day_from, s.day_to)}</div></div>`).join("")
+      ? d.ships.map((s) => `<div class="card shipcard"><b>${esc(s.ship)}</b><div class="n">${n0(s.jobs)}</div><div class="r">jobs · ${rangeS(s.day_from, s.day_to)}</div></div>`).join("")
       : `<div class="muted">Nothing on file yet. The first file you drop starts the record.</div>`;
     const tb = $("#hist tbody");
-    tb.innerHTML = d.uploads.filter((u) => u.finished_at).map((u) => `<tr><td>${day(u.started_at.slice(0, 10))}</td><td>${esc(u.file_name)}${u.sheet && u.sheet !== u.ship ? ` <span class="muted">· tab ${esc(u.sheet)}</span>` : ""}</td><td>${esc(u.ship)}</td><td>${range(u.day_from, u.day_to)}</td><td class="num">${n0(u.rows_sent)}</td><td class="num">${n0(u.rows_added)}</td></tr>`).join("");
-    $("#hist").hidden = !tb.children.length;
+    tb.innerHTML = d.uploads.filter((u) => u.finished_at).map((u) => `<tr><td>${day(u.started_at.slice(0, 10))}</td><td>${esc(cleanName(u.file_name))}${u.sheet && u.sheet !== u.ship ? ` <span class="muted">· tab ${esc(u.sheet)}</span>` : ""}</td><td>${esc(u.ship)}</td><td>${rangeS(u.day_from, u.day_to)}</td><td class="num">${n0(u.rows_sent)}</td><td class="num">${n0(u.rows_added)}</td></tr>`).join("");
+    $("#hist").hidden = $("#histh").hidden = !tb.children.length;
   } catch { $("#ships").innerHTML = `<div class="muted">Could not reach the record — no connection.</div>`; }
 }
 loadOnFile();
