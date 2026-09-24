@@ -19,11 +19,9 @@ test("an impossible row fails and says how many", () => {
   assert.match(r.checks.find((c) => c.id === "integrity").detail, /^3 run times/);
 });
 
-test("a ship gone quiet is named, with its last day", () => {
+test("no 'ship gone quiet' warning — uploads are monthly, the reminder covers it", () => {
   const r = assess({ ...base, today: "2026-10-20" });
-  const c = r.checks.find((x) => x.id === "stale:Quest");
-  assert.equal(c.status, "warn");
-  assert.match(c.title, /Quest: no jobs after 21 Sep 2026/);
+  assert.ok(!r.checks.some((x) => x.id.startsWith("stale")));
 });
 
 test("a gap names the missing dates — Onward's real 23 days", () => {

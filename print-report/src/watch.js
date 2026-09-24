@@ -19,14 +19,17 @@
 // Miguel, 2026-09-23: "I only need an email if something is wrong. Not daily
 // status." A gap in the log is a fact about the ship, not a fault in the app.
 //
-// Every check names its subject: which ship, which dates, which upload. Never
-// "a ship is stale".
+// Every check names its subject: which ship, which dates, which upload.
+//
+// No "ship gone quiet" check (removed 2026-09-24, Miguel: "I don't need this
+// STALE"). Uploads are monthly, so it fired every month; the reminder to Ohji
+// on the 1st (remind.js) already names each ship's missing days.
 
 import { baseline } from "../public/print/lib/metrics.js";
 import { category } from "../public/print/lib/classify.js";
 import { mast } from "./cims-mast.js";
 
-export const LIMITS = { staleDays: 14, gapDays: 7, driftPts: 10, driftMin: 200, unfinishedHours: 2 };
+export const LIMITS = { gapDays: 7, driftPts: 10, driftMin: 200, unfinishedHours: 2 };
 
 const day = (ts) => ts.slice(0, 10);
 const addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
@@ -61,12 +64,6 @@ export function assess(f, limits = LIMITS) {
   if (bad.length) add("integrity", "fail", "The record has impossible rows", bad.map(([k, t]) => `${inv[k]} ${t}`).join(" · "));
   else if (f.ships.length) add("integrity", "ok", "Every row passes the integrity rules");
   if ((inv.complete_never_ran || 0) > 0) add("complete_never_ran", "info", `${inv.complete_never_ran} completed jobs have no run time`, "The press logged Complete with a 00:00:00 start and no paper fed. Left out of every hour count.");
-
-  // ships gone quiet
-  for (const s of f.ships) {
-    const age = between(day(s.last), today);
-    if (age > limits.staleDays) add(`stale:${s.ship}`, "warn", `${s.ship}: no jobs after ${fday(day(s.last))}`, `${age} days without a newer upload. Drop the latest job history for ${s.ship}.`);
-  }
 
   // gaps inside the log
   for (const [ship, days] of Object.entries(f.daysByShip || {})) {
