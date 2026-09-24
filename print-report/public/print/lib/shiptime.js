@@ -179,7 +179,13 @@ const ZONES = [
 ].map(([rx, tz]) => [new RegExp(`(?<![a-z])(?:${rx.source})(?![a-z])`), tz]); // whole words only: "Basseterre" is not Sète
 
 // A place name → zone, or null. "At sea" is not a place.
+const PZ = new Map();
 export function placeZone(place) {
+  const k = String(place || "");
+  if (!PZ.has(k)) PZ.set(k, placeZone0(k));
+  return PZ.get(k);
+}
+function placeZone0(place) {
   const p = String(place || "").toLowerCase().replace(/\s+/g, " ").trim();
   if (!p || /\bat sea\b|sea ?day|cruising|scenic/.test(p) && !/hubbard|endicott|prince christian|panama canal/.test(p)) return null;
   for (const [rx, tz] of ZONES) if (rx.test(p)) return tz;
@@ -192,8 +198,13 @@ const DATE_RX = new RegExp(`${MON_RX}\\.?\\s*,?\\s*(\\d{1,2})(?:st|nd|rd|th)?\\s
 const WEEKDAY = /(?<![a-z])(?:mon|tues?|wed(?:nes)?|thu(?:rs)?|fri|sat(?:ur)?|sun)(?:day)?\b[,.]?\s*$/i;
 
 // A document file name → { date, place } when it names a port and a full date.
+const DP = new Map();
 export function datedPlace(file) {
   if (!file) return null;
+  if (DP.has(file)) return DP.get(file);
+  const r = datedPlace0(file); DP.set(file, r); return r;
+}
+function datedPlace0(file) {
   const m = DATE_RX.exec(file);
   if (!m) return null;
   const mon = MONTHS.indexOf(m[1].slice(0, 3).toLowerCase());
@@ -275,17 +286,41 @@ function fmt(tz) {
   }
   return f;
 }
-const OFF = new Map();
+const OFF = new Map();   // tz → Map(hour number → minutes)
+// "Etc/GMT+5" is a fixed offset (−300 min) — no calendar lookup needed
+const FIXED = (tz) => { const m = /^Etc\/GMT([+-])(\d{1,2})$/.exec(tz); return m ? (m[1] === "+" ? -1 : 1) * +m[2] * 60 : null; };
 // minutes east of UTC for tz at the instant utcMs (cached per zone-hour)
 export function offsetMin(tz, utcMs) {
-  const key = tz + "|" + Math.floor(utcMs / 3600000);
-  let o = OFF.get(key);
+  let byHour = OFF.get(tz);
+  if (!byHour) { byHour = new Map(); OFF.set(tz, byHour); const f = FIXED(tz); if (f != null) byHour.fixed = f; }
+  if (byHour.fixed != null) return byHour.fixed;
+  // a zone's offset only moves at a summer-time change: cache it per UTC day when
+  // both ends of the day agree, per hour only on the two change days a year
+  const day = Math.floor(utcMs / 86400000);
+  let o = byHour.get("d" + day);
   if (o != null) return o;
+  if (!byHour.has("x" + day)) {
+    // start of day = end of the day before, which is usually already known
+    let a = byHour.get("e" + (day - 1));
+    if (a == null) a = offsetAt(tz, day * 86400000);
+    const b = offsetAt(tz, day * 86400000 + 86399000);
+    byHour.set("e" + day, b);
+    if (a === b) { byHour.set("d" + day, a); return a; }
+    byHour.set("x" + day, true);
+  }
+  const key = Math.floor(utcMs / 3600000);
+  o = byHour.get(key);
+  if (o != null) return o;
+  o = offsetAt(tz, utcMs);
+  byHour.set(key, o);
+  return o;
+}
+function offsetAt(tz, utcMs) {
+  let o;
   const p = {};
   for (const x of fmt(tz).formatToParts(new Date(utcMs))) p[x.type] = x.value;
   const wall = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
   o = Math.round((wall - Math.floor(utcMs / 1000) * 1000) / 60000);
-  OFF.set(key, o);
   return o;
 }
 

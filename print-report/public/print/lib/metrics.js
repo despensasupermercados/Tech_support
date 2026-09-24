@@ -81,7 +81,9 @@ export function split(job, base) {
 
 // "YYYY-MM-DD HH:MM:SS" → ms, treated as a wall-clock (UTC-parsed, never shifted)
 export const ms = (ts) => Date.parse(ts.replace(" ", "T") + "Z");
-export const startMs = (j) => ms(j.endTs) - j.runS * 1000;
+// the report stores j.endMs once per job; parsing the string again each call cost ~0.1 s a load
+const endOf = (j) => (j.endMs != null ? j.endMs : ms(j.endTs));
+export const startMs = (j) => endOf(j) - j.runS * 1000;
 
 function union(iv) {
   iv.sort((a, b) => a[0] - b[0]);
@@ -96,7 +98,7 @@ function union(iv) {
 
 // Union of run intervals for one ship's jobs → [[fromMs, toMs], …] sorted.
 export function busyIntervals(jobs) {
-  return union(jobs.filter((j) => j.runS != null && j.runS > 0).map((j) => [startMs(j), ms(j.endTs)]));
+  return union(jobs.filter((j) => j.runS != null && j.runS > 0).map((j) => [startMs(j), endOf(j)]));
 }
 
 // Union of the PRINTING part of each job: [start, start + min(run, allowance)].

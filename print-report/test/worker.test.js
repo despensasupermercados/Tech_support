@@ -45,6 +45,23 @@ test("jobs come back columnar with string dictionaries", async () => {
   assert.deepEqual(r.data[r.cols.indexOf("user")], [0, 0]);
 });
 
+test("jobs carry an ETag; unchanged data is a 304, new jobs change it", async () => {
+  const e = env();
+  const id = (await call(e, "/print/api/upload", { ship: "Quest", shipSource: "tab", fileName: "a" })).body.id;
+  await call(e, `/print/api/upload/${id}/chunk`, { jobs: [job(1, "2026-09-01 10:00:00")] });
+  const get = (h) => worker.fetch(new Request("https://hon.cims.work/print/api/jobs?ship=Quest", { headers: h || {} }), e);
+  const r1 = await get();
+  const tag = r1.headers.get("etag");
+  assert.ok(tag);
+  assert.match(r1.headers.get("cache-control"), /no-cache/);
+  assert.equal((await get({ "if-none-match": tag })).status, 304);
+  await call(e, `/print/api/upload/${id}/chunk`, { jobs: [job(2, "2026-09-02 10:00:00")] });
+  const r3 = await get({ "if-none-match": tag });
+  assert.equal(r3.status, 200, "an interrupted upload still changes the version");
+  assert.notEqual(r3.headers.get("etag"), tag);
+  assert.equal((await r3.json()).n, 2);
+});
+
 test("malformed jobs are refused one by one, not the chunk", () => {
   assert.ok(cleanJob({ jobId: 1, no: 1, endTs: "21/09/2026 10:00" }).error);
   assert.ok(cleanJob({ jobId: 1, no: 1, endTs: "2026-09-21 10:00:00", runS: 90000 }).error);

@@ -467,6 +467,8 @@ function derive() {
     const d = Object.fromEntries(p.cols.map((c) => [c, col(c)]));
     const ck = S.clk === "press" ? null : shipClock(ITIN[p.ship]);
     const jobs = [];
+    // many jobs share a file name: classify each name / account once, not 37,000 times
+    const keyOf = new Map(), catOf = new Map(), deptOf = new Map();
     for (let i = 0; i < p.n; i++) {
       const file = p.dicts.file[d.file[i]] || null;
       const pressTs = d.end_ts[i];
@@ -477,7 +479,10 @@ function derive() {
         pages: d.pages[i], sheets: d.sheets[i], outSets: d.out_sets[i], color: d.color[i] || 0, black: d.black[i] || 0,
         feed: d.feed[i] || 0, waste: d.waste[i] || 0, file,
       };
-      j.dept = dept(j.user); j.cat = category(j); j.key = docKey(file);
+      const fi = d.file[i], ui = d.user[i], ck2 = d.mode[i] + "|" + fi + "|" + ui;
+      if (!deptOf.has(ui)) deptOf.set(ui, dept(j.user)); j.dept = deptOf.get(ui);
+      if (!catOf.has(ck2)) catOf.set(ck2, category(j)); j.cat = catOf.get(ck2);
+      if (!keyOf.has(fi)) keyOf.set(fi, docKey(file)); j.key = keyOf.get(fi);
       j.day = j.endTs.slice(0, 10); j.endMs = ms(j.endTs);
       j.startMs = j.runS == null ? null : j.endMs - j.runS * 1000;
       j.value = billed(j);
