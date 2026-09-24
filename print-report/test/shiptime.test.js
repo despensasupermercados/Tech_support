@@ -69,3 +69,16 @@ test("ship clock: press 20:00 (UTC−5) in Tokyo is 10:00 next day; in Lisbon su
   const none = shipClock(itinerary([J("2026-07-01 08:00:00", "Birthday Cards.pdf")]));
   assert.deepEqual(none("2026-07-01 08:00:00"), { ts: "2026-07-01 08:00:00", tz: PRESS_TZ, how: "press" });
 });
+
+test("summer-time change days are exact to the hour (cached per day, hourly on change days)", () => {
+  // Lisbon springs forward at 01:00 UTC on 29 Mar 2026
+  assert.equal(offsetMin("Europe/Lisbon", Date.parse("2026-03-28T12:00:00Z")), 0);
+  assert.equal(offsetMin("Europe/Lisbon", Date.parse("2026-03-29T00:30:00Z")), 0);
+  assert.equal(offsetMin("Europe/Lisbon", Date.parse("2026-03-29T01:30:00Z")), 60);
+  assert.equal(offsetMin("Europe/Lisbon", Date.parse("2026-03-30T12:00:00Z")), 60);
+  // New York, 8 Mar 2026 at 07:00 UTC
+  assert.equal(offsetMin("America/New_York", Date.parse("2026-03-08T06:59:00Z")), -300);
+  assert.equal(offsetMin("America/New_York", Date.parse("2026-03-08T07:01:00Z")), -240);
+  // fixed zones never touch the calendar
+  assert.equal(offsetMin("Etc/GMT+5", Date.parse("2026-07-01T00:00:00Z")), -300);
+});

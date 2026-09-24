@@ -25,7 +25,7 @@ import { sendReminder } from "./remind.js";
 
 export const REMIND_CRON = "0 13 1 * *";
 
-export const VERSION = "2026-09-24g";
+export const VERSION = "2026-09-24h";
 const CHUNK_MAX = 500;
 const FLEET_SET = new Set(FLEET);
 const TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
@@ -129,6 +129,8 @@ async function summary(env) {
 
 // Columnar with string dictionaries: ~40% of the plain-JSON size, which is what
 // a ship on Starlink pays for.
+// bump when the pack's shape changes, so no cache serves an old shape
+const JOBS_FORMAT = "c1";
 export const COLS = ["job_id", "end_ts", "run_s", "wait_s", "mode", "user", "result", "tray",
   "pages", "sheets", "out_sets", "color", "black", "feed", "waste", "file"];
 const DICT = new Set(["mode", "user", "result", "tray", "file"]);
@@ -153,10 +155,32 @@ export function columnar(rows) {
   return { cols: COLS, dicts, data, n: rows.length };
 }
 
-async function jobsFor(env, ship) {
+// A ship's jobs only change when an upload finishes, so the pack is built once
+// per upload and served from the edge cache after that (a D1 read of ~10,000
+// rows took 2.6–6.2 s per ship on 24 Sep 2026). The browser keeps its copy and
+// revalidates with the ETag: an unchanged ship costs one tiny 304.
+// Jobs are only ever added (INSERT OR IGNORE), so the ship's job count is an
+// exact version: any stored job — even from an upload cut off half-way — moves it.
+export async function dataVersion(env, ship) {
+  const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM jobs WHERE ship = ?").bind(ship).first();
+  return String(r?.n || 0);
+}
+async function jobsFor(env, ship, request) {
   if (!FLEET_SET.has(ship)) return bad("unknown ship");
+  const v = await dataVersion(env, ship);
+  const etag = `"${ship}-${v}-${JOBS_FORMAT}"`;
+  const head = { "content-type": "application/json; charset=utf-8", "cache-control": "private, no-cache", etag };
+  if (request?.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: head });
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  const key = new Request(`https://cims-print.cache/jobs/${encodeURIComponent(ship)}/${v}/${JOBS_FORMAT}`);
+  if (cache) {
+    const hit = await cache.match(key);
+    if (hit) return new Response(hit.body, { status: 200, headers: head });
+  }
   const res = await env.DB.prepare(`SELECT ${COLS.join(",")} FROM jobs WHERE ship = ? ORDER BY end_ts`).bind(ship).all();
-  return json({ ship, ...columnar(res.results) });
+  const body = JSON.stringify({ ship, ...columnar(res.results) });
+  if (cache) await cache.put(key, new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=2592000" } }));
+  return new Response(body, { status: 200, headers: head });
 }
 
 async function watch(env, url) {
@@ -183,7 +207,7 @@ export default {
     try {
       if (p === "/print/api/health") return json({ ok: true, app: "cims-print", version: VERSION });
       if (p === "/print/api/summary" && request.method === "GET") return summary(env);
-      if (p === "/print/api/jobs" && request.method === "GET") return jobsFor(env, url.searchParams.get("ship"));
+      if (p === "/print/api/jobs" && request.method === "GET") return jobsFor(env, url.searchParams.get("ship"), request);
       if (p === "/print/api/watch" && request.method === "GET") return watch(env, url);
       if (p === "/print/api/upload" && request.method === "POST") return startUpload(env, await request.json());
       let m = p.match(/^\/print\/api\/upload\/([0-9a-f-]{36})\/chunk$/);
