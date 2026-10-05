@@ -44,3 +44,9 @@ test("department names fold case but are never expanded", () => {
   assert.equal(dept("CRSALES"), "CrSales");
   assert.equal(dept("BOM"), "BOM");
 });
+
+test("an underscore planner is a Daily Planner whoever prints it", () => {
+  for (const file of ["05 _ Lisbon, Portugal _ Friday, May 22, 2026.pdf", "01 _ Barcelona, Spain _ June 10, 2026.pdf", "02 _ Cesme, Turkey _ May 11, 2026.pdf"])
+    assert.equal(category({ file, user: "Rest", mode: "Print" }), "Daily Planner", file);
+  assert.equal(category({ file: "Birthday Cards.pdf", user: "Rest", mode: "Print" }), "Other");
+});

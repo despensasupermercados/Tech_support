@@ -74,7 +74,7 @@ export function assess(f, limits = LIMITS) {
   }
 
   // interrupted uploads
-  for (const u of f.unfinished || []) add(`upload:${u.id}`, "warn", `Upload stopped part-way: ${u.ship}`, `"${u.file_name}", started ${u.started_at.slice(0, 16).replace("T", " ")} UTC, ${u.rows_sent.toLocaleString("en-US")} jobs received. Dropping the file again finishes it; nothing is counted twice.`);
+  for (const u of f.unfinished || []) add(`upload:${u.id}`, "warn", `Upload stopped part-way: ${u.ship}`, `"${u.file_name}", started ${u.started_at.slice(0, 16).replace("T", " ")} UTC, ${u.rows_sent.toLocaleString("en-US")} jobs received. Drop the file again to complete it; jobs already on file are skipped, and this warning clears once that upload finishes.`);
 
   // the stalled-time yardstick
   for (const [ship, b] of Object.entries(f.baselines || {})) {
@@ -138,7 +138,11 @@ export async function gather(env, now = new Date()) {
   const daysByShip = {};
   for (const r of dayRows) (daysByShip[r.ship] ||= []).push(r.d);
   const cutoff = new Date(now.getTime() - LIMITS.unfinishedHours * 3600000).toISOString();
-  const unfinished = (await DB.prepare("SELECT id, ship, file_name, started_at, rows_sent FROM uploads WHERE finished_at IS NULL AND started_at < ?").bind(cutoff).all()).results;
+  // an upload abandoned and then sent again in full is not an open problem
+  const unfinished = (await DB.prepare(`SELECT id, ship, file_name, started_at, rows_sent FROM uploads u
+    WHERE finished_at IS NULL AND started_at < ?
+      AND NOT EXISTS (SELECT 1 FROM uploads u2 WHERE u2.ship = u.ship AND u2.file_name = u.file_name
+                      AND u2.finished_at IS NOT NULL AND u2.started_at > u.started_at)`).bind(cutoff).all()).results;
   const runRows = (await DB.prepare("SELECT ship, run_s, feed FROM jobs WHERE result = 'Complete' AND mode = 'Print' AND run_s > 0 AND (feed <= 2 OR feed >= 50)").all()).results;
   const byShip = {};
   for (const r of runRows) (byShip[r.ship] ||= []).push({ result: "Complete", mode: "Print", runS: r.run_s, feed: r.feed });

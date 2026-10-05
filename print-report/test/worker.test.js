@@ -80,6 +80,54 @@ test("with the KV cache: a new upload clears the version, the report sees it", a
   assert.equal(r.status, 304);
 });
 
+test("jobs the night watch would call impossible are refused one by one", () => {
+  const now = new Date("2026-10-05T12:00:00Z");
+  const ok = { jobId: 1, no: 1, endTs: "2026-09-21 10:00:00", startTs: "2026-09-21 09:50:00", runS: 600 };
+  assert.ok(cleanJob(ok, now).row);
+  for (const [bad, why] of [
+    [{ endTs: "2026-02-30 10:00:00" }, "no 30 Feb"],
+    [{ endTs: "2026-09-01 99:99:99" }, "no 99:99"],
+    [{ endTs: ["2026-09-21 10:00:00"] }, "an array is not a time"],
+    [{ startTs: null }, "start missing but a run time given"],
+    [{ startTs: "2026-09-21 11:00:00", runS: 600 }, "starts after it ends"],
+    [{ color: -5 }, "negative count"],
+    [{ endTs: "2099-01-01 10:00:00", startTs: "2099-01-01 09:50:00" }, "future"],
+    [{ endTs: "1999-01-01 10:00:00", startTs: "1999-01-01 09:50:00" }, "before 2020"],
+  ]) assert.ok(cleanJob({ ...ok, ...bad }, now).error, why);
+});
+
+test("a chunk with one bad job still stores the good ones", async () => {
+  const e = env();
+  const id = (await call(e, "/print/api/upload", { ship: "Quest", shipSource: "tab", fileName: "a" })).body.id;
+  const r = await call(e, `/print/api/upload/${id}/chunk`, { jobs: [job(1, "2026-09-01 10:00:00"), { ...job(2, "x"), endTs: ["2026-09-01 11:00:00"] }] });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.added, 1);
+  assert.equal(r.body.refused, 1);
+});
+
+test("a server error comes back as JSON, not Cloudflare's error page; bad JSON is a 400", async () => {
+  const e = env();
+  const broken = { ...e, DB: { prepare: () => { throw new Error("D1_ERROR: boom"); } } };
+  const r = await worker.fetch(new Request("https://hon.cims.work/print/api/summary"), broken);
+  assert.equal(r.status, 500);
+  assert.match((await r.json()).error, /D1_ERROR/);
+  const r2 = await worker.fetch(new Request("https://hon.cims.work/print/api/upload", { method: "POST", body: "{not json" }), e);
+  assert.equal(r2.status, 400);
+});
+
+test("a chunk whose bookkeeping fails still clears the ship's cached version", async () => {
+  const kv = new Map([["v:Quest", "0"]]);
+  const e = { ...env(), CACHE: { get: async (k) => (kv.has(k) ? kv.get(k) : null), put: async (k, v) => void kv.set(k, v), delete: async (k) => void kv.delete(k) } };
+  const id = (await call(e, "/print/api/upload", { ship: "Quest", shipSource: "tab", fileName: "a" })).body.id;
+  kv.set("v:Quest", "0");
+  const real = e.DB.prepare.bind(e.DB);
+  const flaky = { ...e, DB: { ...e.DB, batch: e.DB.batch.bind(e.DB), prepare: (sql) => (sql.startsWith("UPDATE uploads SET rows_sent") ? { bind: () => ({ run: async () => { throw new Error("D1 hiccup"); } }) } : real(sql)) } };
+  const r = await call(flaky, `/print/api/upload/${id}/chunk`, { jobs: [job(1, "2026-09-01 10:00:00")] });
+  assert.equal(r.status, 500);
+  assert.ok(!kv.has("v:Quest"), "the job was stored, so the cached version must go");
+  assert.equal((await call(e, "/print/api/jobs?ship=Quest")).body.n, 1);
+});
+
 test("malformed jobs are refused one by one, not the chunk", () => {
   assert.ok(cleanJob({ jobId: 1, no: 1, endTs: "21/09/2026 10:00" }).error);
   assert.ok(cleanJob({ jobId: 1, no: 1, endTs: "2026-09-21 10:00:00", runS: 90000 }).error);

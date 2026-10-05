@@ -72,7 +72,7 @@ export function expectedS(base, feed) {
 
 // → { printS, stallS } ; stallS null when the ship has no yardstick
 export function split(job, base) {
-  if (job.runS == null) return { printS: 0, stallS: 0 };
+  if (job.runS == null) return { printS: null, stallS: null }; // never ran: absent, not zero
   if (!base) return { printS: job.runS, stallS: null };
   const allowed = TOLERANCE * expectedS(base, job.feed);
   const printS = Math.min(job.runS, allowed);

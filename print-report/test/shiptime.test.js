@@ -82,3 +82,18 @@ test("summer-time change days are exact to the hour (cached per day, hourly on c
   // fixed zones never touch the calendar
   assert.equal(offsetMin("Etc/GMT+5", Date.parse("2026-07-01T00:00:00Z")), -300);
 });
+
+test("half-hour zones change on the half hour, whatever order they are asked in", () => {
+  const A = "Australia/Adelaide", a = Date.parse("2026-10-03T16:15:00Z"), b = Date.parse("2026-10-03T16:45:00Z");
+  assert.equal(offsetMin(A, b), 630);
+  assert.equal(offsetMin(A, a), 570);
+  assert.equal(offsetMin("America/St_Johns", Date.parse("2026-03-08T05:50:00Z")), -150);
+});
+
+test("specific places beat look-alikes; accents don't hide a port", () => {
+  assert.equal(placeZone("Kochi, India"), "Asia/Kolkata");
+  assert.equal(placeZone("Kochi, Japan"), "Asia/Tokyo");
+  assert.equal(placeZone("Falmouth, Jamaica"), "America/Jamaica");
+  assert.equal(placeZone("Bayonne, New Jersey"), "America/New_York");
+  assert.equal(placeZone("Curaçao"), "America/Curacao");
+});
