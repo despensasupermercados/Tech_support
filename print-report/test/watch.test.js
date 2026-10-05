@@ -124,3 +124,14 @@ test("a malformed timestamp is caught by the D1-safe check", async () => {
   const f = await gather({ DB }, new Date("2026-09-02T06:15:00Z"));
   assert.equal(f.invariants.bad_ts, 1);
 });
+
+test("an upload abandoned and then sent again in full is not reported as stopped part-way", async () => {
+  const DB = makeD1();
+  DB.raw.exec(`INSERT INTO uploads (id, file_name, sheet, ship, ship_source, rows_sent, rows_added, started_at, finished_at) VALUES
+    ('a', 'Quest Sept.xlsx', 'Sheet1', 'Quest', 'filename', 100, 100, '2026-10-01T10:00:00Z', NULL),
+    ('b', 'Quest Sept.xlsx', 'Sheet1', 'Quest', 'filename', 588, 488, '2026-10-01T10:05:00Z', '2026-10-01T10:06:00Z'),
+    ('c', 'Onward Sept.xlsx', 'Sheet1', 'Onward', 'filename', 50, 50, '2026-10-01T10:00:00Z', NULL)`);
+  const { gather } = await import("../src/watch.js");
+  const f = await gather({ DB }, new Date("2026-10-02T06:15:00Z"));
+  assert.deepEqual(f.unfinished.map((u) => u.id), ["c"], "Quest was completed by a later upload; Onward was not");
+});

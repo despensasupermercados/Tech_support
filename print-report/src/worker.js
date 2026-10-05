@@ -40,18 +40,31 @@ const bad = (msg, status = 400) => json({ error: msg }, status);
 const str = (v, max = 300) => (v == null ? null : String(v).slice(0, max));
 const intOrNull = (v) => (v == null || v === "" ? null : Number.isFinite(+v) ? Math.round(+v) : null);
 const int0 = (v) => intOrNull(v) ?? 0;
+const d10 = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
-// One job from the client → one row, or a reason it was refused.
-export function cleanJob(j) {
+// A real calendar time, not just the right shape ("2026-02-30 99:99:99" has the
+// shape). Strings only: an array would pass a regex and then break the batch.
+const realTs = (s) => typeof s === "string" && TS.test(s) && (() => { const d = new Date(s.replace(" ", "T") + "Z"); return !isNaN(d) && d.toISOString().slice(0, 19).replace("T", " ") === s; })();
+const COUNTS = ["color", "black", "mono", "feed", "exit", "waste"];
+
+// One job from the client → one row, or a reason it was refused. Everything the
+// night watch would call impossible is refused here, one job at a time, so a bad
+// row can neither enter the record nor trip the "something is wrong" email.
+export function cleanJob(j, now = new Date()) {
   if (!j || typeof j !== "object") return { error: "not an object" };
-  if (!TS.test(j.endTs || "")) return { error: "bad end time" };
-  if (j.startTs != null && !TS.test(j.startTs)) return { error: "bad start time" };
-  if (j.acceptTs != null && !TS.test(j.acceptTs)) return { error: "bad accept time" };
+  if (!realTs(j.endTs)) return { error: "bad end time" };
+  if (j.startTs != null && !realTs(j.startTs)) return { error: "bad start time" };
+  if (j.acceptTs != null && !realTs(j.acceptTs)) return { error: "bad accept time" };
+  if (j.endTs < "2020-01-01") return { error: "dated before 2020" };
+  if (j.endTs > new Date(now.getTime() + 2 * 86400000).toISOString().slice(0, 10)) return { error: "dated in the future" };
   const jobId = intOrNull(j.jobId);
   const no = intOrNull(j.no);
   if (jobId == null || no == null) return { error: "missing Job ID or No." };
   const run = intOrNull(j.runS);
   if (run != null && (run < 0 || run >= 86400)) return { error: "run time out of range" };
+  if ((j.startTs == null) !== (run == null)) return { error: "start time and run time disagree" };
+  if (j.startTs != null && j.startTs > j.endTs) return { error: "starts after it ends" };
+  if (COUNTS.some((k) => int0(j[k]) < 0)) return { error: "negative count" };
   return {
     row: [
       jobId, j.endTs, j.startTs ?? null, j.acceptTs ?? null, run, intOrNull(j.waitS), no,
@@ -78,7 +91,7 @@ async function startUpload(env, b) {
     `INSERT INTO uploads (id, file_name, sheet, ship, ship_source, day_from, day_to, started_at)
      VALUES (?,?,?,?,?,?,?,?)`,
   ).bind(id, str(b.fileName) || "(unnamed)", str(b.sheet), b.ship, src,
-    str(b.from, 10), str(b.to, 10), new Date().toISOString()).run();
+    d10(b.from), d10(b.to), new Date().toISOString()).run();
   await forget(env, null);
   return json({ id });
 }
@@ -100,13 +113,18 @@ async function chunk(env, id, b) {
     stmts.push(stmt.bind(up.ship, jobId, ...rest, id));
   }
   let added = 0;
-  if (stmts.length) {
-    const res = await env.DB.batch(stmts);
-    for (const r of res) added += r.meta?.changes || 0;
+  try {
+    if (stmts.length) {
+      const res = await env.DB.batch(stmts);
+      for (const r of res) added += r.meta?.changes || 0;
+    }
+    await env.DB.prepare("UPDATE uploads SET rows_sent = rows_sent + ?, rows_added = rows_added + ? WHERE id = ?")
+      .bind(jobs.length, added, id).run();
+  } finally {
+    // jobs may be committed even when a later step throws — and a retry then adds
+    // 0 — so any chunk that wrote to the jobs table clears the ship's version
+    await forget(env, stmts.length ? up.ship : null);
   }
-  await env.DB.prepare("UPDATE uploads SET rows_sent = rows_sent + ?, rows_added = rows_added + ? WHERE id = ?")
-    .bind(jobs.length, added, id).run();
-  await forget(env, added ? up.ship : null);
   return json({ sent: jobs.length, added, refused });
 }
 
@@ -184,7 +202,7 @@ export async function dataVersion(env, ship) {
   return kvOr(env, `v:${ship}`, async () => {
     const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM jobs WHERE ship = ?").bind(ship).first();
     return String(r?.n || 0);
-  }, 86400);
+  }, 60); // a version computed by a reader can race a write: let it heal within a minute
 }
 async function forget(env, ship) {
   if (!env.CACHE) return;
@@ -216,10 +234,12 @@ export default {
   // Night watch — Cloudflare cron (wrangler.toml [triggers]).
   async scheduled(event, env, ctx) {
     if (event.cron === REMIND_CRON) {
-      ctx.waitUntil(sendReminder(env).then((r) => console.log(`[remind] ${JSON.stringify(r)}`)));
+      ctx.waitUntil(sendReminder(env).then((r) => console.log(`[remind] ${JSON.stringify(r)}`), (e) => console.error(`[remind] failed: ${e?.message || e}`)));
       return;
     }
-    ctx.waitUntil(runWatch(env, { trigger: "cron", email: true }).then((r) => console.log(`[watch] ${r.status} · ${r.checks.length} checks · emailed ${r.emailed}`)));
+    // the scheduled time, not "now": a send at 06:15:31 then a check at 06:15:04
+    // seven days later must still count as seven days
+    ctx.waitUntil(runWatch(env, { trigger: "cron", email: true, now: new Date(event.scheduledTime || Date.now()) }).then((r) => console.log(`[watch] ${r.status} · ${r.checks.length} checks · emailed ${r.emailed}`)));
   },
 
   async fetch(request, env) {
@@ -228,14 +248,17 @@ export default {
     if (!p.startsWith("/print/api/")) return env.ASSETS.fetch(request);
     try {
       if (p === "/print/api/health") return json({ ok: true, app: "cims-print", version: VERSION });
-      if (p === "/print/api/summary" && request.method === "GET") return summary(env);
-      if (p === "/print/api/jobs" && request.method === "GET") return jobsFor(env, url.searchParams.get("ship"), request);
-      if (p === "/print/api/watch" && request.method === "GET") return watch(env, url);
-      if (p === "/print/api/upload" && request.method === "POST") return startUpload(env, await request.json());
+      // every handler is awaited: an un-awaited promise that rejects skips this
+      // catch and Cloudflare answers with its own HTML error page
+      const body = () => request.json().catch(() => undefined); // bad JSON → 400 "no body", not 500
+      if (p === "/print/api/summary" && request.method === "GET") return await summary(env);
+      if (p === "/print/api/jobs" && request.method === "GET") return await jobsFor(env, url.searchParams.get("ship"), request);
+      if (p === "/print/api/watch" && request.method === "GET") return await watch(env, url);
+      if (p === "/print/api/upload" && request.method === "POST") return await startUpload(env, await body());
       let m = p.match(/^\/print\/api\/upload\/([0-9a-f-]{36})\/chunk$/);
-      if (m && request.method === "POST") return chunk(env, m[1], await request.json());
+      if (m && request.method === "POST") return await chunk(env, m[1], await body());
       m = p.match(/^\/print\/api\/upload\/([0-9a-f-]{36})\/finish$/);
-      if (m && request.method === "POST") return finish(env, m[1]);
+      if (m && request.method === "POST") return await finish(env, m[1]);
       return bad("not found", 404);
     } catch (e) {
       return bad(`server error: ${e.message}`, 500);
