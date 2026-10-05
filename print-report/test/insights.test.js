@@ -51,3 +51,16 @@ test("a partly-on-file period is compared per day, never as a collapse", () => {
   assert.match(busy.html, /the same per day as last month/);
   assert.equal(busy.g.badge, "10/30 days");
 });
+
+test("a full week against a partly-on-file week before it is compared per day", () => {
+  // log starts Thu 1 Jan; 1 h every day; week of 5 Jan vs the 4-day week of 29 Dec = flat per day, not +75%
+  const jobs = []; for (let d = 1; d <= 11; d++) jobs.push(J("Quest", `2026-01-${String(d).padStart(2, "0")} 10:00:00`, 3600));
+  const r = insights({ jobs, key: "2026-01-05", grain: "week", bases: { Quest: { setupS: 50, secPerSheet: 4 } }, dayMin: "2026-01-01", dayMax: "2026-01-11" });
+  const busy = r.cards.find((c) => c.id === "busy");
+  assert.match(busy.html, /the same per day as last week/);
+});
+
+test("a day where nothing ran claims no busiest hour", () => {
+  const r = insights({ jobs: [J("Quest", "2026-01-05 10:00:00", 0, { runS: null, startMs: null, result: "Cancel" })], key: "2026-01-05", grain: "day", bases: { Quest: { setupS: 50, secPerSheet: 4 } }, dayMin: "2026-01-01", dayMax: "2026-01-31" });
+  assert.ok(!r.cards.some((c) => c.id === "when"));
+});

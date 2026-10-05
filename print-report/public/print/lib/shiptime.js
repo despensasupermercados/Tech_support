@@ -31,6 +31,9 @@ export const PRESS_TZ = "Etc/GMT+5";
 // matched through its places. Extend when the report lists an unplaced port.
 const ZONES = [
   // ---- places that would be caught by the wrong general rule
+  [/kochi, india|cochin/, "Asia/Kolkata"],                       // before Japan's Kochi
+  [/falmouth, jamaica|montego|ocho rios/, "America/Jamaica"],    // before England's Falmouth
+  [/new jersey|bayonne|cape liberty/, "America/New_York"],       // before the Channel Island
   [/kuala lumpur|port klang|penang|langkawi|malaysia/, "Asia/Kuala_Lumpur"],
   [/kusadasi|ephesus|turkey|istanbul|canakkale|bodrum|marmaris/, "Europe/Istanbul"],
   [/gibraltar/, "Europe/Gibraltar"],
@@ -186,7 +189,8 @@ export function placeZone(place) {
   return PZ.get(k);
 }
 function placeZone0(place) {
-  const p = String(place || "").toLowerCase().replace(/\s+/g, " ").trim();
+  // "Curaçao", "Cádiz", "Málaga" → plain letters, as the rules are written
+  const p = String(place || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
   if (!p || /\bat sea\b|sea ?day|cruising|scenic/.test(p) && !/hubbard|endicott|prince christian|panama canal/.test(p)) return null;
   for (const [rx, tz] of ZONES) if (rx.test(p)) return tz;
   return null;
@@ -308,7 +312,9 @@ export function offsetMin(tz, utcMs) {
     if (a === b) { byHour.set("d" + day, a); return a; }
     byHour.set("x" + day, true);
   }
-  const key = Math.floor(utcMs / 3600000);
+  // change day: cache per minute — Adelaide and St John's change on the half hour,
+  // so an hourly key could hold two offsets and depend on call order
+  const key = "m" + Math.floor(utcMs / 60000);
   o = byHour.get(key);
   if (o != null) return o;
   o = offsetAt(tz, utcMs);

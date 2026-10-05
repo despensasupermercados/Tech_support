@@ -31,8 +31,8 @@ test("printing up to the tolerance, stalled beyond it", () => {
   assert.deepEqual(split(J("2026-01-01 10:00:00", 100, 10), b), { printS: 100, stallS: 0 });
 });
 
-test("a job that never ran contributes nothing", () => {
-  assert.deepEqual(split({ runS: null, feed: 0 }, { setupS: 50, secPerSheet: 4 }), { printS: 0, stallS: 0 });
+test("a job that never ran has no printing or stall — absent, not zero", () => {
+  assert.deepEqual(split({ runS: null, feed: 0 }, { setupS: 50, secPerSheet: 4 }), { printS: null, stallS: null });
 });
 
 test("overlapping jobs are counted once in busy time", () => {

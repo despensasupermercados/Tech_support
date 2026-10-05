@@ -139,8 +139,11 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
   // reads as a 41% collapse against a 31-day August. k scales the previous
   // period to the current one's days on file.
   const pcov = coverage(prevKey, grain, dayMin, dayMax);
-  const k = cov.partial && pcov.days ? cov.days / pcov.days : 1;
-  const perDay = cov.partial ? " per day" : "";
+  // either side partly on file → compare per day (the log starts on a Thursday,
+  // so the first full week is compared with a 4-day one)
+  const partial = cov.partial || (havePrev && pcov.partial);
+  const k = partial && pcov.days ? cov.days / pcov.days : 1;
+  const perDay = partial ? " per day" : "";
   const cards = [];
   const card = (c) => cards.push(c);
   if (!cur.length) return { cards, cov, empty: true };
@@ -151,7 +154,7 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
   // history of this grain → typical + record
   const periods = new Map();
   for (const d of Object.keys(days)) { const k = periodOf(d, grain); periods.set(k, (periods.get(k) || 0) + days[d].busy); }
-  const earlier = [...periods.entries()].filter(([k, v]) => k < key && v > 0).sort((a, b) => (a[0] < b[0] ? 1 : -1)).slice(0, 8).map(([, v]) => v).sort((a, b) => a - b);
+  const earlier = [...periods.entries()].filter(([k, v]) => k < key && v > 0 && !coverage(k, grain, dayMin, dayMax).partial).sort((a, b) => (a[0] < b[0] ? 1 : -1)).slice(0, 8).map(([, v]) => v).sort((a, b) => a - b);
   const typical = earlier.length >= 3 ? quantile(earlier, 0.5) : null;
   const allFull = [...periods.entries()].filter(([k]) => !coverage(k, grain, dayMin, dayMax).partial);
   const best = allFull.sort((a, b) => b[1] - a[1])[0];
@@ -161,7 +164,7 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
     const bits = [];
     const c = change(T.busy, P ? P.busy * k : null);
     // partial period: "12% less per day than last month"
-    if (c) bits.push(cov.partial ? `${c === "the same as" ? "the same per day as" : c.replace(" than", " per day than")} ${prevWord[grain]}` : `${c} ${prevWord[grain]} (${hrs(P.busy)})`);
+    if (c) bits.push(partial ? `${c === "the same as" ? "the same per day as" : c.replace(" than", " per day than")} ${prevWord[grain]}` : `${c} ${prevWord[grain]} (${hrs(P.busy)})`);
     if (typical) bits.push(`a typical ${noun} is ${hrs(typical)}`);
     const record = !cov.partial && best && best[0] === key && allFull.length >= 3;
     const spark = []; for (let i = 11; i >= 0; i--) { const k = shiftPeriod(key, grain, -i); if (periodRange(k, grain)[1] >= dayMin) spark.push(Math.round((periods.get(k) || 0) / 3600)); }
@@ -190,9 +193,11 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
   }
 
   // 3 · when — busiest day (week/month/year) or busiest hour (day)
-  if (grain === "day") {
+  if (grain === "day" && T.busy > 0) {
     const h = T.hours.indexOf(Math.max(...T.hours));
-    const first = cur.filter((j) => j.startMs != null).map((j) => j.startMs).sort((a, b) => a - b)[0];
+    // a job from 23:50 the night before started "today" at 00:00 as far as this day goes
+    const d0 = Date.parse(key + "T00:00:00Z");
+    const first = cur.filter((j) => j.startMs != null).map((j) => Math.max(j.startMs, d0)).sort((a, b) => a - b)[0];
     const last = cur.map((j) => Date.parse(j.endTs.replace(" ", "T") + "Z")).sort((a, b) => b - a)[0];
     const hhmm = (ms) => new Date(ms).toISOString().slice(11, 16);
     card({
@@ -201,7 +206,7 @@ export function insights({ jobs, key, grain, bases, docName = (k) => k, dayMin, 
       html: `First job started <b>${first ? hhmm(first) : "—"}</b>, last ended <b>${hhmm(last)}</b>. Busiest hour: <b>${String(h).padStart(2, "0")}:00–${String((h + 1) % 24).padStart(2, "0")}:00</b> (${Math.round(T.hours[h] / 60)} min).`,
       go: { tab: "workload" },
     });
-  } else if (T.perDay.length) {
+  } else if (grain !== "day" && T.perDay.length) {
     const [d, s] = T.perDay.sort((a, b) => b[1] - a[1])[0];
     const dj = cur.filter((j) => j.day === d);
     const top = groupTop(dj, (j) => j.cat, (j) => j.runS || 0);

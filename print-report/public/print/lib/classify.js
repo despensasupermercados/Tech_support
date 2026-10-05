@@ -45,7 +45,9 @@ export function docKey(file) {
 // "DAY 10 I AT SEA I SEPTEMBER 22, 2026" — a day number or date plus a separator.
 // "APRIL15" happens (no space), so the month may run straight into the day.
 const DATED = new RegExp(`(\\b(${MONTHS})\\s*\\d{1,2})|(\\d{1,2}\\s*(${MONTHS})\\b)`, "i");
-const PLANNER_SHAPE = /(^|\s)(day\s*\d+|\d{1,2})\s*[_|i]\s+.+\s[_|i]\s/i;
+// "05 _ Lisbon, Portugal _ Friday…", "DAY 9 I LISBON I …", "02 | Cesme | …" — tested on the
+// name BEFORE "_" is folded to a space (folding first made the "_" form unmatchable)
+const PLANNER_SHAPE = /(^|\s)(day\s*\d+|\d{1,2})\s*(?:[_|]|i\s)\s*.+?(?:\s*[_|]\s*|\si\s)/i;
 
 // Order matters. The first block is unambiguous words; then the planner-day
 // shape is tested (see category); then the looser families.
@@ -76,11 +78,12 @@ export function category(job) {
   if (mode === "test pattern" || mode === "copy" || mode === "list print") return "Test Pattern / Copy";
   const raw = String(job.file || "");
   // "_" is a word character to a regex, so "TopCruiser_Menu" would hide "menu".
-  const f = raw.toLowerCase().replace(/^microsoft (word|excel|powerpoint|publisher) - /, "").replace(/[_]+/g, " ");
+  const g = raw.toLowerCase().replace(/^microsoft (word|excel|powerpoint|publisher) - /, "");
+  const f = g.replace(/[_]+/g, " ");
   if (!f) return "Other";
   for (const [cat, re] of FIRST) if (re.test(f)) return cat;
   const user = String(job.user || "").toLowerCase();
-  if (/\bat sea\b|\bembarkation\b.*\d{4}|^\d{1,2}\s*embarkation/.test(f) || (PLANNER_SHAPE.test(f) && DATED.test(f))) return "Daily Planner";
+  if (/\bat sea\b|\bembarkation\b.*\d{4}|^\d{1,2}\s*embarkation/.test(f) || (PLANNER_SHAPE.test(g) && DATED.test(f))) return "Daily Planner";
   if (user === "insider" && DATED.test(f)) return "Daily Planner";
   for (const [cat, re] of RULES) if (re.test(f)) return cat;
   if (user === "voyager") return "The Voyager";
