@@ -143,7 +143,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const n0 = (n) => Number(n || 0).toLocaleString("en-US");
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const day = (iso) => { if (!iso) return "—"; const [y, m, d] = iso.split("-"); return `${+d} ${MONTHS[+m - 1]} ${y}`; };
+const day = (iso) => { if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return "—"; const [y, m, d] = iso.slice(0, 10).split("-"); return `${+d} ${MONTHS[+m - 1]} ${y}`; };
 const range = (a, b) => (a && b ? `${day(a)} – ${day(b)}` : "—");
 // same year → "1 Jan – 21 Sep 2026"
 const rangeS = (a, b) => (a && b ? (a.slice(0, 4) === b.slice(0, 4) ? `${day(a).replace(/ \d{4}$/, "")} – ${day(b)}` : range(a, b)) : "—");
@@ -151,6 +151,9 @@ const rangeS = (a, b) => (a && b ? (a.slice(0, 4) === b.slice(0, 4) ? `${day(a).
 const cleanName = (n) => String(n || "").replace(/^[0-9a-f]{6,}[-_]/i, "");
 
 let parsed = null; let fileName = "";
+let sending = false; // a send loop is running: no second one, no ship change, no new file
+// work on this page that a reload would lose: a send under way or a file not fully sent
+const busy = () => sending || !!(parsed && parsed.some((s) => !s.finished));
 const CHUNK = 500, TIMEOUT = 25000;
 
 function showErr(msg) { const e = $("#err"); e.textContent = msg; e.style.display = msg ? "block" : "none"; }
@@ -159,8 +162,8 @@ function showErr(msg) { const e = $("#err"); e.textContent = msg; e.style.displa
 const drop = $("#drop");
 ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) read(f); });
-$("#file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) read(f); e.target.value = ""; });
+drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f && !sending) read(f); });
+$("#file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f && !sending) read(f); e.target.value = ""; });
 $("#clear").addEventListener("click", reset);
 
 function reset() {
@@ -217,6 +220,7 @@ function render() {
 
 const shipOf = (s) => s.ship || s.picked || null;
 function gate() {
+  if (sending) return; // the send loop owns the button until it ends
   const missing = parsed.filter((s) => !shipOf(s)).length;
   $("#send").disabled = missing > 0;
   $("#send").textContent = missing ? `Pick the ship for ${missing} tab${missing > 1 ? "s" : ""}` : "Add to the record";
@@ -240,6 +244,16 @@ async function post(url, body) {
 }
 
 $("#send").addEventListener("click", async () => {
+  if (sending) return;
+  sending = true;
+  // a ship can't change once its upload has started: the server already filed it under the first one
+  document.querySelectorAll("select.ship").forEach((sel) => (sel.disabled = true));
+  try { await sendAll(); } finally {
+    sending = false;
+    document.querySelectorAll("select.ship").forEach((sel) => { const s = parsed?.[+sel.dataset.i]; sel.disabled = !!s?.uploadId; });
+  }
+});
+async function sendAll() {
   $("#send").disabled = true; $("#clear").disabled = true; showErr("");
   let added = 0, sent = 0, failed = 0;
   for (let i = 0; i < parsed.length; i++) {
@@ -277,7 +291,7 @@ $("#send").addEventListener("click", async () => {
   $("#cta").hidden = false;
   $("#ctaText").textContent = `${n0(added)} new jobs added · ${n0(sent - added)} already on file.`;
   loadOnFile();
-});
+}
 
 async function loadOnFile() {
   try {
@@ -302,7 +316,8 @@ loadOnFile();
   const check = async () => {
     try {
       const v = (await fetch("api/health", { cache: "no-store" }).then((r) => r.json())).version;
-      if (seen && v && v !== seen) location.reload();
+      // never under a file being sent: its progress is not in the URL
+      if (seen && v && v !== seen && !(typeof busy === "function" && busy())) location.reload();
       seen = seen || v;
     } catch {}
   };

@@ -407,7 +407,7 @@ const hrs = (s) => { const h = (s || 0) / 3600; return h > 0 && h < 1 ? "<1" : n
 const usd = (v) => "$" + Math.round(v || 0).toLocaleString("en-US");
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const WD = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const fday = (iso) => { if (!iso) return "—"; const [y, m, d] = iso.split("-"); return `${+d} ${MON[+m - 1]} ${y}`; };
+const fday = (iso) => { if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "—"; const [y, m, d] = iso.split("-"); return `${+d} ${MON[+m - 1]} ${y}`; };
 const fdayShort = (iso) => { const [, m, d] = iso.split("-"); return `${+d} ${MON[+m - 1]}`; };
 const hh = (h) => String(h).padStart(2, "0") + ":00";
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -562,6 +562,15 @@ function readHash() {
     const v = h.get(k);
     S2[k] = Array.isArray(DEFAULT[k]) ? (v ? v.split("|") : []) : typeof DEFAULT[k] === "boolean" ? v === "1" : v;
   }
+  // A view is shared as a link, so the hash is untrusted input: anything that is
+  // not the shape it should be is dropped, never rendered.
+  const DATE = /^\d{4}-\d{2}-\d{2}$/;
+  for (const k of ["day", "gday", "from", "to"]) if (S2[k] && !DATE.test(S2[k])) S2[k] = "";
+  if (S2.ik && !/^\d{4}(-\d{2}(-\d{2})?)?$/.test(S2.ik)) S2.ik = "";
+  if (!/^(all|7|30|90|mtd|lm|ytd|custom|\d{4}-\d{2})$/.test(S2.period)) S2.period = "all";
+  for (const k of ["hour", "wd"]) if (S2[k] !== "" && !/^\d{1,2}$/.test(S2[k])) S2[k] = "";
+  if (!["ship", "press"].includes(S2.clk)) S2.clk = "ship";
+  if (SHIPS.length) S2.ships = S2.ships.filter((x) => SHIPS.includes(x));
   S = S2;
 }
 function writeHash() {
@@ -573,7 +582,7 @@ function writeHash() {
   }
   history.replaceState(null, "", "#" + h.toString());
 }
-function set(patch) { Object.assign(S, patch); writeHash(); syncControls(); render(); }
+function set(patch) { Object.assign(S, patch); writeHash(); if (DERIVED && S.clk !== DERIVED) derive(); syncControls(); render(); }
 
 function periodRange() {
   const end = DAY_MAX;
@@ -600,7 +609,7 @@ function passesNonDate(j) {
   if (S.doc && j.key !== S.doc) return false;
   if (S.q && !(j.file || "").toLowerCase().includes(S.q.toLowerCase())) return false;
   if (S.hour !== "" && (j.startMs == null || new Date(j.startMs).getUTCHours() !== +S.hour)) return false;
-  if (S.wd !== "" && ((new Date(j.endMs).getUTCDay() + 6) % 7) !== +S.wd) return false;
+  if (S.wd !== "" && ((new Date(j.startMs ?? j.endMs).getUTCDay() + 6) % 7) !== +S.wd) return false;
   if (S.day && j.day !== S.day) return false;
   return true;
 }
@@ -804,11 +813,11 @@ function syncControls() {
   const [pa, pb] = periodRange();
   const nShips = S.ships.length || SHIPS.length;
   const narrowed = S.ships.length && S.ships.length < SHIPS.length;
-  const insKey = S.ik || latestKey(S.ig);
+  const insKey = insightsKey();
   const dates = S.tab === "insights" ? (S.ig === "month" ? `${MONTH_NAMES[+insKey.slice(5, 7) - 1]} ${insKey.slice(0, 4)}` : S.ig === "year" ? insKey : `${fday(pRange(insKey, S.ig)[0])}${S.ig === "day" ? "" : ` – ${fday(pRange(insKey, S.ig)[1])}`}`)
     : /^\d{4}-\d{2}$/.test(S.period) ? `${MONTH_NAMES[+S.period.slice(5, 7) - 1]} ${S.period.slice(0, 4)}${pb < pRange(S.period, "month")[1] ? ` <span class="muted">to ${fdayShort(pb)}</span>` : ""}` : `${fday(pa)} – ${fday(pb)}`;
   $("#scope").className = "scope" + (narrowed || chips.length || S.period !== "all" ? " narrow" : "");
-  $("#scope").innerHTML = `<span class="lab">Showing</span> <b>${narrowed ? `${S.ships.join(" + ")} — ${S.ships.length} of ${SHIPS.length} ships` : `all ${SHIPS.length} ships`}</b> · <b>${dates}</b>${chips.length ? ` · ${chips.length} more filter${chips.length > 1 ? "s" : ""}` : ""}${narrowed ? ` <button class="linkbtn" id="allShips">Show all ${SHIPS.length} ships</button>` : ""}<span class="clk" role="group" aria-label="Clock"><button data-c="ship" class="${S.clk !== "press" ? "on" : ""}" title="Each job in the time zone of the port the ship was at that day">⚓ Ship<span class="d-inl"> time</span></button><button data-c="press" class="${S.clk === "press" ? "on" : ""}" title="The press's own clock: fixed UTC−5 (Miami winter time) on every ship">Press<span class="d-inl"> clock</span></button></span>`;
+  $("#scope").innerHTML = `<span class="lab">Showing</span> <b>${narrowed ? `${esc(S.ships.join(" + "))} — ${S.ships.length} of ${SHIPS.length} ships` : `all ${SHIPS.length} ships`}</b> · <b>${dates}</b>${chips.length ? ` · ${chips.length} more filter${chips.length > 1 ? "s" : ""}` : ""}${narrowed ? ` <button class="linkbtn" id="allShips">Show all ${SHIPS.length} ships</button>` : ""}<span class="clk" role="group" aria-label="Clock"><button data-c="ship" class="${S.clk !== "press" ? "on" : ""}" title="Each job in the time zone of the port the ship was at that day">⚓ Ship<span class="d-inl"> time</span></button><button data-c="press" class="${S.clk === "press" ? "on" : ""}" title="The press's own clock: fixed UTC−5 (Miami winter time) on every ship">Press<span class="d-inl"> clock</span></button></span>`;
   const as = $("#allShips"); if (as) as.onclick = () => set({ ships: [] });
   $$("#scope .clk button").forEach((b) => (b.onclick = () => set({ clk: b.dataset.c })));
   const onIns = S.tab === "insights";
@@ -947,11 +956,19 @@ function viz(v) {
   }
   return "";
 }
-function insightsTab() {
+// The insights period actually shown: S.ik if it is a real key of this grain
+// inside the data, otherwise clamped — one answer for the view and the Showing line.
+function insightsKey() {
   const grain = GRAINS.includes(S.ig) ? S.ig : "month";
   let key = S.ik && periodOf(pRange(S.ik, grain)[0], grain) === S.ik ? S.ik : latestKey(grain);
   const minKey = periodOf(DAY_MIN, grain), maxKey = latestKey(grain);
   if (key < minKey) key = minKey; if (key > maxKey) key = maxKey;
+  return key;
+}
+function insightsTab() {
+  const grain = GRAINS.includes(S.ig) ? S.ig : "month";
+  const key = insightsKey();
+  const minKey = periodOf(DAY_MIN, grain), maxKey = latestKey(grain);
   const base = sliceJobs();
   const depts = groupBy(base, (j) => j.dept, () => 1).map((x) => x[0]);
   const cats = groupBy(base, (j) => j.cat, () => 1).map((x) => x[0]);
@@ -980,8 +997,9 @@ function insightsTab() {
   <div class="card panel m-hide" style="margin-bottom:14px"><div class="ph"><div><h2>Press time, ${grain} by ${grain}</h2><p>The last 12 ${grain}s for this view. Click a bar to open that ${grain}.${cov.partial ? ` <span class="part">This ${grain} is only partly on file (${cov.days} of ${cov.of} days).</span>` : ""}</p></div></div><div class="chart short" id="chStrip" style="height:180px"></div></div>
   <div id="icards"></div>`;
   $("#iGrain").onclick = (e) => { const b = e.target.closest("button"); if (b) set({ ig: b.dataset.g, ik: periodOf(pRange(key, grain)[1] > DAY_MAX ? DAY_MAX : pRange(key, grain)[1], b.dataset.g) }); };
-  $("#iPrev").onclick = () => set({ ik: shiftPeriod(key, grain, -1) });
-  $("#iNext").onclick = () => set({ ik: shiftPeriod(key, grain, 1) });
+  const goKey = (k) => set(grain === "month" ? { ik: k, period: k, from: "", to: "" } : { ik: k });
+  $("#iPrev").onclick = () => goKey(shiftPeriod(key, grain, -1));
+  $("#iNext").onclick = () => goKey(shiftPeriod(key, grain, 1));
   $("#iLatest").onclick = () => set({ ik: "" });
   $("#iLens").onchange = (e) => set({ lens: e.target.value, lv: "" });
   if ($("#iLv")) $("#iLv").onchange = (e) => set({ lv: e.target.value });
@@ -997,7 +1015,7 @@ function insightsTab() {
     xAxis: axis({ type: "category", data: keys.map((k2) => shortLabel(k2, grain)), splitLine: { show: false } }),
     yAxis: axis({ type: "value", axisLine: { show: false }, axisLabel: { color: C.ink3, fontSize: 10.5, formatter: (v) => `${v}h` } }),
     series: [{ type: "bar", barMaxWidth: 30, data: keys.map((k2) => ({ value: +((per.get(k2) || 0) / 3600).toFixed(1), itemStyle: { color: k2 === key ? C.brand : C.print, opacity: k2 === key ? 1 : 0.55, borderRadius: [4, 4, 0, 0] } })) }],
-  }, (p) => set({ ik: keys[p.dataIndex] }));
+  }, (p) => goKey(keys[p.dataIndex]));
 
   const [ra, rb] = pRange(key, grain);
   const clampA = ra < DAY_MIN ? DAY_MIN : ra, clampB = rb > DAY_MAX ? DAY_MAX : rb;
@@ -1017,7 +1035,8 @@ function insightsTab() {
   $$("#icards .tile").forEach((b) => (b.onclick = () => {
     const go = JSON.parse(b.dataset.c);
     const patch = { ...go };
-    if (!go.day) Object.assign(patch, { period: "custom", from: clampA, to: clampB });
+    // a day drill opens that day; anything else opens this insights period
+    Object.assign(patch, go.day ? { period: "custom", from: go.day, to: go.day } : { period: "custom", from: clampA, to: clampB });
     if (lens === "dept" && !go.depts) patch.depts = [lv];
     if (lens === "cat" && !go.cats) patch.cats = [lv];
     if (lens === "ships" && !go.ships) patch.ships = [b.closest(".icol").querySelector("h3").textContent.trim()];
@@ -1515,6 +1534,7 @@ function cancels({ jobs, k }) {
 let jobSort = { k: "endMs", dir: -1 }, jobPage = 0;
 function jobsTab({ jobs }) {
   const PAGE = 100;
+  jobPage = 0; // every render here is a new filter or tab visit; paging calls draw() only
   $("#tab").innerHTML = `<div class="card panel"><div class="tbar"><div><h2>${n0(jobs.length)} jobs</h2><p class="muted" style="font-size:12.5px">Every job matching the filters. Click a column to sort.</p></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="pager" id="pager"></div><button class="btn" id="csv">Download CSV</button></div></div>
     <div class="m-only" id="mJobs"></div>
@@ -1523,7 +1543,7 @@ function jobsTab({ jobs }) {
   if (S.money) cols.push(["value", "Billed", 1]);
   const draw = () => {
     const { k: key, dir } = jobSort;
-    const list = jobs.slice().sort((x, y) => { const a2 = x[key] ?? -Infinity, b2 = y[key] ?? -Infinity; return (typeof a2 === "string" ? a2.localeCompare(b2) : a2 - b2) * dir; });
+    const list = jobs.slice().sort((x, y) => { const a2 = x[key], b2 = y[key]; if (a2 == null || b2 == null) return (a2 == null) - (b2 == null); return (typeof a2 === "string" ? a2.localeCompare(String(b2)) : a2 - b2) * dir; });
     const pages = Math.max(1, Math.ceil(list.length / PAGE)); jobPage = Math.min(jobPage, pages - 1);
     const rows = list.slice(jobPage * PAGE, jobPage * PAGE + PAGE);
     $("#tJobs").innerHTML = `<thead><tr>${cols.map(([c, l, num]) => `<th data-k="${c}" class="${num ? "num" : ""}">${l}${jobSort.k === c ? `<span class="ar"> ${dir < 0 ? "↓" : "↑"}</span>` : ""}</th>`).join("")}</tr></thead><tbody>${rows.map((j) => `<tr>
@@ -1538,9 +1558,10 @@ function jobsTab({ jobs }) {
   };
   draw();
   $("#csv").onclick = () => {
-    const head = ["ship", "job_id", "ended", "time_zone", "ended_press_clock_utc-5", "department", "document_type", "file_name", "result", "sheets", "colour_clicks", "black_clicks", "run_seconds", "normal_seconds", "stalled_seconds", "billed_usd"];
-    const q = (v) => (v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v);
-    const lines = [head.join(",")].concat(jobs.map((j) => [j.ship, j.jobId, j.endTs, j.tz, j.pressTs, j.dept, j.cat, j.file, j.result, j.feed, j.color, j.black, j.runS, j.expS == null ? "" : Math.round(j.expS), j.stallS == null ? "" : Math.round(j.stallS), j.value.toFixed(2)].map(q).join(",")));
+    const head = ["ship", "job_id", "ended", "time_zone", "ended_press_clock_utc-5", "department", "document_type", "file_name", "result", "sheets", "colour_clicks", "black_clicks", "run_seconds", "normal_seconds", "stalled_seconds", ...(S.money ? ["billed_usd"] : [])];  // $ only when switched on
+    // quote , " CR LF; a text cell starting = + - @ is prefixed ' so Excel never runs it as a formula
+    const q = (v) => { if (v == null) return ""; let t = String(v); if (typeof v === "string" && /^[=+\-@]/.test(t)) t = "'" + t; return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const lines = [head.join(",")].concat(jobs.map((j) => [j.ship, j.jobId, j.endTs, j.tz, j.pressTs, j.dept, j.cat, j.file, j.result, j.feed, j.color, j.black, j.runS, j.expS == null ? "" : Math.round(j.expS), j.stallS == null ? "" : Math.round(j.stallS), ...(S.money ? [j.value.toFixed(2)] : [])].map(q).join(",")));
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `print-jobs-${periodRange().join("_")}.csv`; a.click();
   };
@@ -1571,6 +1592,7 @@ async function nightWatch() {
   catch (e) { $("#main").innerHTML = `<div class="card empty"><h2>Could not load the record</h2><p>No connection, or the server did not answer. Refresh to try again.</p></div>`; return; }
   if (!ok) { $("#main").innerHTML = `<div class="card empty"><h2>Nothing on file yet</h2><p>Drop the first press job history on the upload page and the report fills in.</p><p style="margin-top:14px"><a class="btn primary" href="./">Go to upload</a></p></div>`; return; }
   $("#filters").hidden = false;
+  S.ships = S.ships.filter((x) => SHIPS.includes(x)); // unknown names from a link are dropped
   $("#foot").textContent = `cims-print · $ at ${CPC.label} [${CPC.source}]`;
   buildControls(); syncControls(); render();
   nightWatch();
